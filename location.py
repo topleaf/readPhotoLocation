@@ -69,8 +69,13 @@ def convert_coor(deg,minute,sec):
     :return:
     """
     logger.debug('deg={},minute={},sec={}'.format(deg,minute,sec))
-    decimal_degree = int(deg) + int(minute)/60 + eval(sec)/3600
-    return round(decimal_degree, 6)
+    try:
+        decimal_degree = int(deg) + int(minute)/60 + eval(sec)/3600
+    except ValueError:
+        logger.error("invalid GPS degree,minute or seconds,return 0.000000")
+        return 0.000000
+    else:
+        return round(decimal_degree, 6)
 
 def find_address_from_bd(GPS):
     secret_key = 'wLyevcXk5QY36hTKmvV5350F'
@@ -78,9 +83,14 @@ def find_address_from_bd(GPS):
         return '该照片无GPS信息'
     lat = round(GPS['GPS_information']['GPSLatitude']+LAT_OFF_BD, 6)
     lng = round(GPS['GPS_information']['GPSLongitude']+LONG_OFF_BD, 6)
-    logger.info('True latitude,longitude are {},{}, BD-offset longitude,latitude are {},{}'.format(
-        GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
-        lng, lat))
+    try:
+        logger.info('True latitude,longitude are {},{},altitude={},date={}'
+                    '\nBD-offset longitude,latitude are {},{}'.format(
+            GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
+            GPS['GPS_information']['GPSAltitude'],GPS['date_information'],
+            lng, lat))
+    except KeyError:
+        pass
     baidu_map_api = "http://api.map.baidu.com/geocoder/v2/?ak={0}&callback=renderReverse&location={1},{2}s&output=json&pois=0".format(
         secret_key, lat, lng)
     response = requests.get(baidu_map_api)
@@ -103,7 +113,7 @@ LAT_OFF_BD = 0.004035   #0.003386
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     logHandler = logging.StreamHandler()
     logger.addHandler(logHandler)
     argparser = argparse.ArgumentParser(
@@ -131,4 +141,7 @@ if __name__ == '__main__':
         except IsADirectoryError:
             pass
 
+    logger.info("\n\nvisit http://api.map.baidu.com/lbsapi/getpoint/index.html , "
+                "\npaste BD-offset longitude,latitude pair,选择 坐标反查，"
+                "可以在地图上显示相应的地点")
 
