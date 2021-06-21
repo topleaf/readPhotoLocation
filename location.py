@@ -27,6 +27,7 @@ def extract_image(pic_path):
     date = ''
     with open(pic_path, 'rb') as f:
         tags = exifread.process_file(f)
+        image_model = 'empty placeholder'
         for tag, value in tags.items():
             # 纬度
             if re.match('GPS GPSLatitudeRef', tag):
@@ -55,9 +56,15 @@ def extract_image(pic_path):
 #                logger.debug("longitude={}".format(GPS['GPSLongitude']))
             elif re.match('GPS GPSAltitude', tag):
                 GPS['GPSAltitude'] = str(value)
+            elif re.match('GPS GPSProcessingMethod', tag):
+                # logger.debug(value)
+                # nonblanklist = [x.replace(' ','') for x in str(value)[1:-1].split(',')]
+                GPS['GPSProcessingMethod'] = str(value)
+            elif re.match('Image Model', tag):
+                image_model = str(value)
             elif re.match('.*Date.*', tag):
                 date = str(value)
-    return {'GPS_information': GPS, 'date_information': date}
+    return {'GPS_information': GPS, 'date_information': date, 'model': image_model}
 
 def convert_coor(deg,minute,sec):
     """
@@ -85,11 +92,20 @@ def find_address_from_bd(GPS):
     lng = round(GPS['GPS_information']['GPSLongitude']+LONG_OFF_BD, 6)
     try:
         logger.info('True latitude,longitude are {},{},altitude={},date={}'
-                    '\nBD-offset longitude,latitude are {},{}'.format(
+                    '\nBD-offset longitude,latitude are {},{},'
+                    '\nGPSProcessingMethod={},PhoneModel={}'.format(
             GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
             GPS['GPS_information']['GPSAltitude'],GPS['date_information'],
-            lng, lat))
+            lng, lat, GPS['GPS_information']['GPSProcessingMethod'],
+            GPS['model']))
     except KeyError:
+        logger.info('True latitude,longitude are {},{},date={}'
+                    '\nBD-offset longitude,latitude are {},{}'
+                    '\nPhoneModel={}'.format(
+            GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
+            GPS['date_information'],
+            lng, lat,
+            GPS['model']))
         pass
     baidu_map_api = "http://api.map.baidu.com/geocoder/v2/?ak={0}&callback=renderReverse&location={1},{2}s&output=json&pois=0".format(
         secret_key, lat, lng)
