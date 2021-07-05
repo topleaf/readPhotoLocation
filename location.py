@@ -27,6 +27,7 @@ class ExtractInfo:
     # verified working well on June-21,2021 in Shanghai area
     LONG_OFF_BD = 0.011262
     LAT_OFF_BD = 0.004035   #0.003386
+    BD_LOCATE_URL = 'http://api.map.baidu.com/lbsapi/getpoint/index.html'
 
     def __init__(self, pic_path, logger):
         self.pic_path = pic_path
@@ -85,11 +86,11 @@ class ExtractInfo:
         :param sec:
         :return:
         """
-        logger.debug('deg={},minute={},sec={}'.format(deg,minute,sec))
+        self.logger.debug('deg={},minute={},sec={}'.format(deg,minute,sec))
         try:
             decimal_degree = int(deg) + int(minute)/60 + eval(sec)/3600
         except ValueError:
-            logger.error("invalid GPS degree,minute or seconds,return 0.000000")
+            self.logger.error("invalid GPS degree,minute or seconds,return 0.000000")
             return 0.000000
         else:
             return round(decimal_degree, 6)
