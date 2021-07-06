@@ -20,6 +20,12 @@ import argparse
 #
 # original idea comes from :
 #https://mp.weixin.qq.com/s?__biz=MjM5NzE1MDA0MQ==&mid=2247515082&idx=1&sn=513ed81e2f1ee20ab9a4dd93e4b5d615&chksm=a6dc97fc91ab1eea2fbe979aa768465c635fea86daf3c47dc274c79449ca7348737b97e7c588&mpshare=1&scene=1&srcid=0618IbkHOSuhqJgrc1rqkmQm&sharer_sharetime=1624000145242&sharer_shareid=5b5812d8e60ff7dbd282c4933514cf26#rd
+#  baidu map api document
+# https://lbsyun.baidu.com/index.php?title=uri/api/web
+#
+#http://api.map.baidu.com/marker?location=40.047669,116.313082&title=我的位置&content=百度奎科大厦&output=html&src=webapp.baidu.openAPIdemo
+#//调起百度PC或web地图，且在（lat:39.916979519873，lng:116.41004950566）坐标点上显示名称"我的位置"，内容"百度奎科大厦"的信息窗口。
+#https://lbsyun.baidu.com/index.php?title=uri/api/web
 
 class ExtractInfo:
     # experimental data for offset applied to original gps wgs-84 coordinate
@@ -27,7 +33,19 @@ class ExtractInfo:
     # verified working well on June-21,2021 in Shanghai area
     LONG_OFF_BD = 0.011262
     LAT_OFF_BD = 0.004035   #0.003386
-    BD_LOCATE_URL = 'http://api.map.baidu.com/lbsapi/getpoint/index.html'
+    secret_key = 'wLyevcXk5QY36hTKmvV5350F'  # baidu map ak
+    BD_LOCATE_URL = 'http://api.map.baidu.com/marker?location={0},{1}' \
+                    '&title={2}&content={3}&output=html&src=webapp.baidu.openAPIdemo&coord_type=wgs84'
+    #坐标类型，可选参数。
+        # 示例：
+        # coord_type= bd09ll
+        # 允许的值为：
+        # bd09ll（百度经纬度坐标）
+        # bd09mc（百度墨卡托坐标）
+        # gcj02（经国测局加密的坐标)
+        # wgs84（gps获取的原始坐标）
+
+    #'http://api.map.baidu.com/lbsapi/getpoint/index.html'
 
     def __init__(self, pic_path, logger):
         self.pic_path = pic_path
@@ -95,12 +113,39 @@ class ExtractInfo:
         else:
             return round(decimal_degree, 6)
 
+
+    def wgs84_2_bd09ll_conversion(self,GPS):
+        """
+        https://lbsyun.baidu.com/index.php?title=webapi/guide/changeposition
+        change wgs84 gps coordination to bd09ll coordination
+        :param GPS:
+        :return:  dict of x: longitude, y:latitude of bd09ll coordination
+        """
+        try:
+            baidu_coord_conversion_api = "http://api.map.baidu.com/geoconv/v1/?ak={0}&coords={1},{2}&from=1&to=5".format(
+            ExtractInfo.secret_key, GPS['GPS_information']['GPSLongitude'], GPS['GPS_information']['GPSLatitude'])
+
+            response = requests.get(baidu_coord_conversion_api)
+            text = json.loads(response.text)
+            if text['status'] == 0:
+                return text['result'][0]['x'], text['result'][0]['y']
+            else:
+                raise LookupError
+        except:
+            raise LookupError
+
+
     def find_address_from_bd(self, GPS):
-        secret_key = 'wLyevcXk5QY36hTKmvV5350F'
         if not GPS['GPS_information']:
             return '该照片无GPS信息'
-        lat = round(GPS['GPS_information']['GPSLatitude']+ExtractInfo.LAT_OFF_BD, 6)
-        lng = round(GPS['GPS_information']['GPSLongitude']+ExtractInfo.LONG_OFF_BD, 6)
+
+        try:
+            lng, lat = self.wgs84_2_bd09ll_conversion(GPS)
+        except LookupError:
+            self.logger.error('wgs84 coordination to bd09ll coordination conversion failed')
+            lat = round(GPS['GPS_information']['GPSLatitude']+ExtractInfo.LAT_OFF_BD, 6)
+            lng = round(GPS['GPS_information']['GPSLongitude']+ExtractInfo.LONG_OFF_BD, 6)
+
         try:
             self.logger.info('True latitude,longitude are {},{},altitude={},date={}'
                         '\nBD-offset longitude,latitude are {},{},'
@@ -119,7 +164,7 @@ class ExtractInfo:
                 GPS['model']))
             pass
         baidu_map_api = "http://api.map.baidu.com/geocoder/v2/?ak={0}&callback=renderReverse&location={1},{2}s&output=json&pois=0".format(
-            secret_key, lat, lng)
+            ExtractInfo.secret_key, lat, lng)
         response = requests.get(baidu_map_api)
         content = response.text.replace("renderReverse&&renderReverse(", "")[:-1]
         baidu_map_address = json.loads(content)
