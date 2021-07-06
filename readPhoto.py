@@ -27,7 +27,7 @@ class ReadPhotoGui(Tk):
     def buildInitialGui(self):
         self.title = "read geographic information"
         self.resizable(True, True)
-        self.geometry("1024x768")
+        self.geometry(str(ReadPhotoGui.WIDTH)+'x'+str(ReadPhotoGui.HEIGHT))
 
         ttk.Style().configure("TFrame", foreground='green', background='lightgrey')
         self.mainframe = ttk.Frame(self, padding="1 1 1 1",
@@ -72,13 +72,31 @@ class ReadPhotoGui(Tk):
         self.models = []
 
 
-        pass
+    def __clear_notebook(self):
+        for frame_t in self.frames_in_notebook:
+            self.notebook.forget(frame_t)
+        self.frames_in_notebook.clear()
+        self.file_vars.clear()
+        self.longitudes.clear()
+        self.latitudes.clear()
+        self.altitudes.clear()
+        self.formatted_addrs.clear()
+        self.provinces.clear()
+        self.cities.clear()
+        self.districts.clear()
+        self.locations.clear()
+        self.dates.clear()
+        self.models.clear()
+
+
+
 
     def on_check(self):
         self.check_button['state'] = 'disabled'
         self.logger.info("\nChecking all files under path:{}".format(self.path.get()))
         self.extractInfo = ExtractInfo(self.path.get(), self.logger)
         list1 = os.listdir(self.path.get())
+        self.__clear_notebook()
         count = 0
         for pic_file_name in list1:
             try:
