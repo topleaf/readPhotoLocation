@@ -91,9 +91,15 @@ class ExtractInfo:
                     # nonblanklist = [x.replace(' ','') for x in str(value)[1:-1].split(',')]
                     GPS['GPSProcessingMethod'] = ''
                     for item in value.values:
-                        GPS['GPSProcessingMethod'] += (lambda x: chr(x) if x != 0 else ' ')(item)
+                        try:
+                            GPS['GPSProcessingMethod'] += (lambda x: chr(x) if x != 0 else ' ')(item)
+                        except TypeError:   # for case when value.values is a string
+                            GPS['GPSProcessingMethod'] = value.values
+                            break
                 elif re.match('Image Model', tag):
-                    image_model = str(value)
+                    image_model += (' ' + str(value))
+                elif re.match('Image Make', tag):
+                    image_model += (' ' + str(value))
                 elif re.match('.*Date.*', tag):
                     date_str = str(value)
         return {'GPS_information': GPS, 'date_information': date_str, 'model': image_model}
@@ -139,45 +145,46 @@ class ExtractInfo:
 
 
     def find_address_from_bd(self, GPS):
-        if not GPS['GPS_information']:
-            return '该照片无GPS信息'
+        if not GPS['GPS_information'] and not GPS['date_information'] and not GPS['model']:
+            return '该照片无Exif信息'
+        elif GPS['GPS_information']:
+            try:
+                lng, lat = self.wgs84_2_bd09ll_conversion(GPS)
+            except LookupError:
+                self.logger.error('wgs84 coordination to bd09ll coordination conversion failed')
+                lat = round(GPS['GPS_information']['GPSLatitude']+ExtractInfo.LAT_OFF_BD, 6)
+                lng = round(GPS['GPS_information']['GPSLongitude']+ExtractInfo.LONG_OFF_BD, 6)
 
-        try:
-            lng, lat = self.wgs84_2_bd09ll_conversion(GPS)
-        except LookupError:
-            self.logger.error('wgs84 coordination to bd09ll coordination conversion failed')
-            lat = round(GPS['GPS_information']['GPSLatitude']+ExtractInfo.LAT_OFF_BD, 6)
-            lng = round(GPS['GPS_information']['GPSLongitude']+ExtractInfo.LONG_OFF_BD, 6)
+            try:
+                self.logger.info('True latitude,longitude are {},{},altitude={},date={}'
+                            '\nBD-offset longitude,latitude are {},{},'
+                            '\nGPSProcessingMethod={},PhoneModel={}'.format(
+                    GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
+                    GPS['GPS_information']['GPSAltitude'],GPS['date_information'],
+                    lng, lat, GPS['GPS_information']['GPSProcessingMethod'],
+                    GPS['model']))
+            except KeyError:
+                self.logger.info('True latitude,longitude are {},{},date={}'
+                            '\nBD-offset longitude,latitude are {},{}'
+                            '\nPhoneModel={}'.format(
+                    GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
+                    GPS['date_information'],
+                    lng, lat,
+                    GPS['model']))
+            baidu_map_api = "http://api.map.baidu.com/geocoder/v2/?ak={0}&callback=renderReverse&location={1},{2}s&output=json&pois=0".format(
+                ExtractInfo.secret_key, lat, lng)
+            response = requests.get(baidu_map_api)
+            content = response.text.replace("renderReverse&&renderReverse(", "")[:-1]
+            baidu_map_address = json.loads(content)
+            formatted_address = baidu_map_address["result"]["formatted_address"]
+            province = baidu_map_address["result"]["addressComponent"]["province"]
+            city = baidu_map_address["result"]["addressComponent"]["city"]
+            district = baidu_map_address["result"]["addressComponent"]["district"]
+            location = baidu_map_address["result"]["sematic_description"]
 
-        try:
-            self.logger.info('True latitude,longitude are {},{},altitude={},date={}'
-                        '\nBD-offset longitude,latitude are {},{},'
-                        '\nGPSProcessingMethod={},PhoneModel={}'.format(
-                GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
-                GPS['GPS_information']['GPSAltitude'],GPS['date_information'],
-                lng, lat, GPS['GPS_information']['GPSProcessingMethod'],
-                GPS['model']))
-        except KeyError:
-            self.logger.info('True latitude,longitude are {},{},date={}'
-                        '\nBD-offset longitude,latitude are {},{}'
-                        '\nPhoneModel={}'.format(
-                GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
-                GPS['date_information'],
-                lng, lat,
-                GPS['model']))
-            pass
-        baidu_map_api = "http://api.map.baidu.com/geocoder/v2/?ak={0}&callback=renderReverse&location={1},{2}s&output=json&pois=0".format(
-            ExtractInfo.secret_key, lat, lng)
-        response = requests.get(baidu_map_api)
-        content = response.text.replace("renderReverse&&renderReverse(", "")[:-1]
-        baidu_map_address = json.loads(content)
-        formatted_address = baidu_map_address["result"]["formatted_address"]
-        province = baidu_map_address["result"]["addressComponent"]["province"]
-        city = baidu_map_address["result"]["addressComponent"]["city"]
-        district = baidu_map_address["result"]["addressComponent"]["district"]
-        location = baidu_map_address["result"]["sematic_description"]
-
-        return formatted_address, province, city, district, location
+            return formatted_address, province, city, district, location
+        else:   # no GPS Location information, only model or date_information
+            return 'unknown','unknown','unknown','unknown','unknown','unknown'
 
 
 

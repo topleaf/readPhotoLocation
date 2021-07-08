@@ -107,7 +107,7 @@ class ReadPhotoGui(Tk):
 
                 result = self.extractInfo.find_address_from_bd(gps_dict)
 
-                if result == "该照片无GPS信息":
+                if result == "该照片无Exif信息":
                     self.logger.info("No {}. The photo: {}  {}".format(count,pic_file_name, result))
                 else:
                     self.__fill_frame(count, pic_file_name,gps_dict,result)
@@ -148,13 +148,17 @@ class ReadPhotoGui(Tk):
             grid(row=0, column=1, columnspan=3, padx=10, sticky=(E,W,N,S))
         ttk.Button(frame_t,text='show photo',command=lambda:self.__on_show_pic(count)).\
             grid(row=0,column=4,padx=20,sticky=(E,W))
-        ttk.Button(frame_t,text='locate on baidu map',command=lambda:self.__on_locate(count)).\
-            grid(row=1,column=4, padx=20,sticky=(E, W))
+        locate_button = ttk.Button(frame_t,text='locate on baidu map',command=lambda:self.__on_locate(count))
+        locate_button.grid(row=1,column=4, padx=20,sticky=(E, W))
 
         # longitude
         ttk.Label(frame_t,text='longitude:').grid(row=1,column=0,padx=10,sticky=(E,W))
         longitude = StringVar()
-        longitude.set('{:.6f}'.format(gps_dict['GPS_information']['GPSLongitude']))
+        try:
+            longitude.set('{:.6f}'.format(gps_dict['GPS_information']['GPSLongitude']))
+        except KeyError:
+            longitude.set('no longitute info')
+            locate_button.configure(state='disabled')
         self.longitudes.append(longitude)
         ttk.Entry(frame_t,width=40, justify='left',textvariable=self.longitudes[count],).\
             grid(row=1,column=1,padx=10,sticky=(E,W))
@@ -162,7 +166,11 @@ class ReadPhotoGui(Tk):
         # latitude
         ttk.Label(frame_t,text='latitude:').grid(row=1,column=2,padx=10,sticky=(E,W))
         latitude = StringVar()
-        latitude.set('{:.6f}'.format(gps_dict['GPS_information']['GPSLatitude']))
+        try:
+            latitude.set('{:.6f}'.format(gps_dict['GPS_information']['GPSLatitude']))
+        except KeyError:
+            latitude.set('no latitude info')
+            locate_button.configure(state='disabled')
         self.latitudes.append(latitude)
         ttk.Entry(frame_t,width=40,textvariable=self.latitudes[count]).\
             grid(row=1,column=3,padx=10,sticky=(E,W))
@@ -185,7 +193,7 @@ class ReadPhotoGui(Tk):
         try:
             processing.set(gps_dict['GPS_information']['GPSProcessingMethod'])
         except KeyError:
-            processing.set('no GPS processing info')
+            processing.set('no GPS ProcessingMethod info')
         
         self.processings.append(processing)
         ttk.Entry(frame_t,width=20,textvariable=self.processings[count]).grid(row=2,column=3,padx=10,sticky=(E,W))
@@ -276,7 +284,7 @@ class ReadPhotoGui(Tk):
 
     def __on_locate(self,count):
         url_string = self.extractInfo.BD_LOCATE_URL.format(self.latitudes[count].get(),self.longitudes[count].get(),
-                                                       "照片位置",self.file_vars[count].get().split('.')[0][:16])
+                                                       "照片位置",self.file_vars[count].get().split('.')[0][:15])
         os.system('xdg-open ' + '"' + url_string + '"')
         self.logger.info('visit ' + url_string)
 
