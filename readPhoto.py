@@ -69,6 +69,7 @@ class ReadPhotoGui(Tk):
         self.locations = []
         self.dates = []
         self.models = []
+        self.processings = []
 
 
     def __clear_notebook(self):
@@ -86,6 +87,7 @@ class ReadPhotoGui(Tk):
         self.locations.clear()
         self.dates.clear()
         self.models.clear()
+        self.processings.clear()
 
 
 
@@ -175,6 +177,19 @@ class ReadPhotoGui(Tk):
 
         self.altitudes.append(altitude)
         ttk.Entry(frame_t,width=20,textvariable=self.altitudes[count]).grid(row=2,column=1,padx=10,sticky=(E,W))
+
+
+        # GPSProcessingMethod
+        ttk.Label(frame_t,text='Processing:').grid(row=2, column=2, padx=10, sticky=(E,W))
+        processing = StringVar()
+        try:
+            processing.set(gps_dict['GPS_information']['GPSProcessingMethod'])
+        except KeyError:
+            processing.set('no GPS processing info')
+        
+        self.processings.append(processing)
+        ttk.Entry(frame_t,width=20,textvariable=self.processings[count]).grid(row=2,column=3,padx=10,sticky=(E,W))
+
 
         # date information
         ttk.Label(frame_t,text='date:').grid(row=3,column=0,padx=10,sticky=(E,W))

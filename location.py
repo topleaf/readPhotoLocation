@@ -53,10 +53,11 @@ class ExtractInfo:
 
     def extract_image(self, pic_name):
         GPS = {}
-        date = ''
+        date_str = ''
+        image_model = ''
         with open(self.pic_path+pic_name, 'rb') as f:
             tags = exifread.process_file(f)
-            image_model = 'empty placeholder'
+
             for tag, value in tags.items():
                 # 纬度
                 if re.match('GPS GPSLatitudeRef', tag):
@@ -88,12 +89,14 @@ class ExtractInfo:
                 elif re.match('GPS GPSProcessingMethod', tag):
                     # logger.debug(value)
                     # nonblanklist = [x.replace(' ','') for x in str(value)[1:-1].split(',')]
-                    GPS['GPSProcessingMethod'] = str(value)
+                    GPS['GPSProcessingMethod'] = ''
+                    for item in value.values:
+                        GPS['GPSProcessingMethod'] += (lambda x: chr(x) if x != 0 else ' ')(item)
                 elif re.match('Image Model', tag):
                     image_model = str(value)
                 elif re.match('.*Date.*', tag):
-                    date = str(value)
-        return {'GPS_information': GPS, 'date_information': date, 'model': image_model}
+                    date_str = str(value)
+        return {'GPS_information': GPS, 'date_information': date_str, 'model': image_model}
 
     def __convert_coor(self, deg,minute,sec):
         """
