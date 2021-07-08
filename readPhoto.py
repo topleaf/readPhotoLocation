@@ -21,11 +21,10 @@ class ReadPhotoGui(Tk):
         self.logger = logger
 
         self.buildInitialGui()
-        # self.extractInfo = ExtractInfo(self.path, self.logger)
 
 
     def buildInitialGui(self):
-        self.title = "read geographic information"
+        self.title("图片地理位置定位")
         self.resizable(True, True)
         self.geometry(str(ReadPhotoGui.WIDTH)+'x'+str(ReadPhotoGui.HEIGHT))
 
@@ -132,18 +131,22 @@ class ReadPhotoGui(Tk):
         frame_t = ttk.Frame(self.notebook)
         self.frames_in_notebook.append(frame_t)
         self.notebook.add(frame_t, text=filename)
-        for i in range(6):
+
+        # configure rows and columns expansion behaviour , how those rows and columns spread to take additional space
+        for i in range(7):
             frame_t.rowconfigure(i,weight=1)
+        for i in (1,3):       # label columns 0#,2#, 4# do not expand
             frame_t.columnconfigure(i,weight=1)
+
         file_var = StringVar()
         file_var.set(filename)
         self.file_vars.append(file_var)
-        ttk.Label(frame_t,text='filename:').grid(row=0,column=0, padx=10,sticky=(E,W))
-        ttk.Entry(frame_t,width=80,textvariable=self.file_vars[count]).\
-            grid(row=0,column=1,columnspan=3,padx=10,sticky=(E,W))
+        ttk.Label(frame_t,text='filename:').grid(row=0, column=0, padx=10, sticky=(E,W,N,S))
+        ttk.Entry(frame_t,width=80,textvariable=self.file_vars[count], state='disabled').\
+            grid(row=0, column=1, columnspan=3, padx=10, sticky=(E,W,N,S))
         ttk.Button(frame_t,text='show photo',command=lambda:self.__on_show_pic(count)).\
             grid(row=0,column=4,padx=20,sticky=(E,W))
-        ttk.Button(frame_t,text='locate',command=lambda:self.__on_locate(count)).\
+        ttk.Button(frame_t,text='locate on baidu map',command=lambda:self.__on_locate(count)).\
             grid(row=1,column=4, padx=20,sticky=(E, W))
 
         # longitude
@@ -151,7 +154,7 @@ class ReadPhotoGui(Tk):
         longitude = StringVar()
         longitude.set('{:.6f}'.format(gps_dict['GPS_information']['GPSLongitude']))
         self.longitudes.append(longitude)
-        ttk.Entry(frame_t,width=20,textvariable=self.longitudes[count],).\
+        ttk.Entry(frame_t,width=40, justify='left',textvariable=self.longitudes[count],).\
             grid(row=1,column=1,padx=10,sticky=(E,W))
 
         # latitude
@@ -159,7 +162,8 @@ class ReadPhotoGui(Tk):
         latitude = StringVar()
         latitude.set('{:.6f}'.format(gps_dict['GPS_information']['GPSLatitude']))
         self.latitudes.append(latitude)
-        ttk.Entry(frame_t,width=20,textvariable=self.latitudes[count]).grid(row=1,column=3,padx=10,sticky=(E,W))
+        ttk.Entry(frame_t,width=40,textvariable=self.latitudes[count]).\
+            grid(row=1,column=3,padx=10,sticky=(E,W))
 
         # altitude
         ttk.Label(frame_t,text='altitude:').grid(row=2,column=0,padx=10,sticky=(E,W))
@@ -248,7 +252,7 @@ class ReadPhotoGui(Tk):
             location_var.set('no detailed location information')
 
         self.locations.append(location_var)
-        ttk.Entry(frame_t,width=60,textvariable=self.locations[count]).grid(row=6,column=1,padx=10,sticky=(E,W))
+        ttk.Entry(frame_t,width=20,textvariable=self.locations[count]).grid(row=6,column=1,padx=10,sticky=(E,W))
 
 
     def __on_show_pic(self,count):
