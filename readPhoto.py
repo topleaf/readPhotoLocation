@@ -7,7 +7,7 @@ import tkinter.ttk as ttk
 
 from location import ExtractInfo
 import logging
-import os
+import os,platform
 from tkinter import filedialog
 import tkinter.messagebox as msgbox
 
@@ -15,13 +15,13 @@ import tkinter.messagebox as msgbox
 class ReadPhotoGui(Tk):
     HEIGHT = 300
     WIDTH = 1024
+    os_dependency = {'Windows':'start ','Linux': 'xdg-open ','Darwin': 'open '}
 
     def __init__(self, logger):
         super().__init__()
         self.logger = logger
-
+        self.platform = platform.system()
         self.buildInitialGui()
-
 
     def buildInitialGui(self):
         self.title("图片地理位置定位")
@@ -279,14 +279,21 @@ class ReadPhotoGui(Tk):
 
 
     def __on_show_pic(self,count):
-        os.system('xdg-open ' + self.path.get() + self.file_vars[count].get())
-        self.logger.info(' file opened: ' + self.path.get() + self.file_vars[count].get())
+        try:
+            os.system(ReadPhotoGui.os_dependency[self.platform] +  ' ' + self.path.get() + self.file_vars[count].get())
+        except KeyError:
+            self.logger.error('unknown platform')
+        else:
+            self.logger.info(' file opened: ' + self.path.get() + self.file_vars[count].get())
 
     def __on_locate(self,count):
         url_string = self.extractInfo.BD_LOCATE_URL.format(self.latitudes[count].get(),self.longitudes[count].get(),
                                                        "照片位置",self.file_vars[count].get().split('.')[0][:15])
-        os.system('xdg-open ' + '"' + url_string + '"')
-        self.logger.info('visit ' + url_string)
+        try:
+            os.system(ReadPhotoGui.os_dependency[self.platform] +  url_string )
+        except KeyError:
+            self.logger.error('Unsupported platform')
+        self.logger.info('visit: ' + url_string)
 
     def on_choose(self):
         """

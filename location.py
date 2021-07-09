@@ -55,53 +55,57 @@ class ExtractInfo:
         GPS = {}
         date_str = ''
         image_model = ''
-        with open(self.pic_path+pic_name, 'rb') as f:
-            tags = exifread.process_file(f)
+        try:
+            with open(self.pic_path+pic_name, 'rb') as f:
+                tags = exifread.process_file(f)
 
-            for tag, value in tags.items():
-                # 纬度
-                if re.match('GPS GPSLatitudeRef', tag):
-                    GPS['GPSLatitudeRef'] = str(value)
-                # 经度
-                elif re.match('GPS GPSLongitudeRef', tag):
-                    GPS['GPSLongitudeRef'] = str(value)
-                # 海拔
-                elif re.match('GPS GPSAltitudeRef', tag):
-                    GPS['GPSAltitudeRef'] = str(value)
-                elif re.match('GPS GPSLatitude', tag):
-                    try:
-                        match_result = re.match('\[(\w*),(\w*),(\w.*)/(\w.*)\]', str(value)).groups()
-                        GPS['GPSLatitude'] = int(match_result[0]), int(match_result[1]), int(match_result[2])
-                    except:
-                        deg, min, sec = [x.replace(' ', '') for x in str(value)[1:-1].split(',')]
-                        GPS['GPSLatitude'] = self.__convert_coor(deg, min, sec)
-    #                logger.debug("latitude={}".format(GPS['GPSLatitude']))
-                elif re.match('GPS GPSLongitude', tag):
-                    try:
-                        match_result = re.match('\[(\w*),(\w*),(\w.*)/(\w.*)\]', str(value)).groups()
-                        GPS['GPSLongitude'] = int(match_result[0]), int(match_result[1]), int(match_result[2])
-                    except:
-                        deg, min, sec = [x.replace(' ', '') for x in str(value)[1:-1].split(',')]
-                        GPS['GPSLongitude'] = self.__convert_coor(deg, min, sec)
-    #                logger.debug("longitude={}".format(GPS['GPSLongitude']))
-                elif re.match('GPS GPSAltitude', tag):
-                    GPS['GPSAltitude'] = str(value)
-                elif re.match('GPS GPSProcessingMethod', tag):
-                    # logger.debug(value)
-                    # nonblanklist = [x.replace(' ','') for x in str(value)[1:-1].split(',')]
-                    GPS['GPSProcessingMethod'] = ''
-                    for item in value.values:
+                for tag, value in tags.items():
+                    # 纬度
+                    if re.match('GPS GPSLatitudeRef', tag):
+                        GPS['GPSLatitudeRef'] = str(value)
+                    # 经度
+                    elif re.match('GPS GPSLongitudeRef', tag):
+                        GPS['GPSLongitudeRef'] = str(value)
+                    # 海拔
+                    elif re.match('GPS GPSAltitudeRef', tag):
+                        GPS['GPSAltitudeRef'] = str(value)
+                    elif re.match('GPS GPSLatitude', tag):
                         try:
-                            GPS['GPSProcessingMethod'] += (lambda x: chr(x) if x != 0 else ' ')(item)
-                        except TypeError:   # for case when value.values is a string
-                            GPS['GPSProcessingMethod'] = value.values
-                            break
-                elif re.match('Image Model', tag):
-                    image_model += (' ' + str(value))
-                elif re.match('Image Make', tag):
-                    image_model += (' ' + str(value))
-                elif re.match('.*Date.*', tag):
-                    date_str = str(value)
+                            match_result = re.match('\[(\w*),(\w*),(\w.*)/(\w.*)\]', str(value)).groups()
+                            GPS['GPSLatitude'] = int(match_result[0]), int(match_result[1]), int(match_result[2])
+                        except:
+                            deg, min, sec = [x.replace(' ', '') for x in str(value)[1:-1].split(',')]
+                            GPS['GPSLatitude'] = self.__convert_coor(deg, min, sec)
+        #                logger.debug("latitude={}".format(GPS['GPSLatitude']))
+                    elif re.match('GPS GPSLongitude', tag):
+                        try:
+                            match_result = re.match('\[(\w*),(\w*),(\w.*)/(\w.*)\]', str(value)).groups()
+                            GPS['GPSLongitude'] = int(match_result[0]), int(match_result[1]), int(match_result[2])
+                        except:
+                            deg, min, sec = [x.replace(' ', '') for x in str(value)[1:-1].split(',')]
+                            GPS['GPSLongitude'] = self.__convert_coor(deg, min, sec)
+        #                logger.debug("longitude={}".format(GPS['GPSLongitude']))
+                    elif re.match('GPS GPSAltitude', tag):
+                        GPS['GPSAltitude'] = str(value)
+                    elif re.match('GPS GPSProcessingMethod', tag):
+                        # logger.debug(value)
+                        # nonblanklist = [x.replace(' ','') for x in str(value)[1:-1].split(',')]
+                        GPS['GPSProcessingMethod'] = ''
+                        for item in value.values:
+                            try:
+                                GPS['GPSProcessingMethod'] += (lambda x: chr(x) if x != 0 else ' ')(item)
+                            except TypeError:   # for case when value.values is a string
+                                GPS['GPSProcessingMethod'] = value.values
+                                break
+                    elif re.match('Image Model', tag):
+                        image_model += (' ' + str(value))
+                    elif re.match('Image Make', tag):
+                        image_model += (' ' + str(value))
+                    elif re.match('.*Date.*', tag):
+                        date_str = str(value)
+        except PermissionError:
+            self.logger.error('one file has no permission,skip it')
+            pass
         return {'GPS_information': GPS, 'date_information': date_str, 'model': image_model}
 
     def __convert_coor(self, deg,minute,sec):
