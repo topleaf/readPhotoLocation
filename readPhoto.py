@@ -5,17 +5,18 @@
 from tkinter import *
 import tkinter.ttk as ttk
 
+import context
 from location import ExtractInfo
 import logging
 import os,platform
 from tkinter import filedialog
 import tkinter.messagebox as msgbox
-
+from context import Context, WindowsOS, LinuxOS, MacOS
 
 class ReadPhotoGui(Tk):
     HEIGHT = 300
     WIDTH = 1024
-    os_dependency = {'Windows':'start ','Linux': 'xdg-open ','Darwin': 'open '}
+    os_dependency = {'Windows': WindowsOS, 'Linux': LinuxOS, 'Darwin': MacOS}
 
     def __init__(self, logger):
         super().__init__()
@@ -279,21 +280,16 @@ class ReadPhotoGui(Tk):
 
 
     def __on_show_pic(self,count):
-        try:
-            os.system(ReadPhotoGui.os_dependency[self.platform] +  ' ' + self.path.get() + self.file_vars[count].get())
-        except KeyError:
-            self.logger.error('unknown platform')
-        else:
-            self.logger.info(' file opened: ' + self.path.get() + self.file_vars[count].get())
+        ct = Context(ReadPhotoGui.os_dependency[self.platform],self.logger)
+        ct.show_pic(self,  count)
 
     def __on_locate(self,count):
         url_string = self.extractInfo.BD_LOCATE_URL.format(self.latitudes[count].get(),self.longitudes[count].get(),
                                                        "照片位置",self.file_vars[count].get().split('.')[0][:15])
-        try:
-            os.system(ReadPhotoGui.os_dependency[self.platform] +  url_string )
-        except KeyError:
-            self.logger.error('Unsupported platform')
-        self.logger.info('visit: ' + url_string)
+        ct = Context(ReadPhotoGui.os_dependency[self.platform],self.logger)
+        ct.show_on_baidu_map(url_string)
+
+
 
     def on_choose(self):
         """
