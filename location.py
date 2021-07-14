@@ -33,7 +33,7 @@ class ExtractInfo:
     # verified working well on June-21,2021 in Shanghai area
     LONG_OFF_BD = 0.011262
     LAT_OFF_BD = 0.004035   #0.003386
-    secret_key = 'wLyevcXk5QY36hTKmvV5350F'  # baidu map ak
+    secret_key = 'QTzFTf0kvm8YuFYFCnNK3Xa5uQtgzbFM'   # baidu map ak  #'wLyevcXk5QY36hTKmvV5350F'
     BD_LOCATE_URL = 'http://api.map.baidu.com/marker?location={0},{1}' \
                     '&title={2}&content={3}&output=html&src=webapp.baidu.openAPIdemo&coord_type=wgs84'
     #坐标类型，可选参数。
@@ -86,7 +86,8 @@ class ExtractInfo:
                             GPS['GPSLongitude'] = self.__convert_coor(deg, min, sec)
         #                logger.debug("longitude={}".format(GPS['GPSLongitude']))
                     elif re.match('GPS GPSAltitude', tag):
-                        GPS['GPSAltitude'] = str(value)
+                        self.logger.debug('original Altitude={}'.format(value.printable))
+                        GPS['GPSAltitude'] = "{:.2f}".format(eval(value.printable))
                     elif re.match('GPS GPSProcessingMethod', tag):
                         # logger.debug(value)
                         # nonblanklist = [x.replace(' ','') for x in str(value)[1:-1].split(',')]
@@ -127,29 +128,58 @@ class ExtractInfo:
             return round(decimal_degree, 6)
 
 
-    def wgs84_2_bd09ll_conversion(self,GPS):
+    def wgs84_cord_conversion(self,GPS, targetCord = None):
         """
         https://lbsyun.baidu.com/index.php?title=webapi/guide/changeposition
-        change wgs84 gps coordination to bd09ll coordination
+        change wgs84 gps coordination to target coordination
+
+        if targetCord is None, does not call baidu conversion api
+
+        源坐标类型：
+
+            1：GPS标准坐标（wgs84）；
+            2：搜狗地图坐标；
+            3：火星坐标（gcj02），即高德地图、腾讯地图和MapABC等地图使用的坐标；
+            4：3中列举的地图坐标对应的墨卡托平面坐标;
+            5：百度地图采用的经纬度坐标（bd09ll）；
+            6：百度地图采用的墨卡托平面坐标（bd09mc）;
+            7：图吧地图坐标；
+            8：51地图坐标；
+
+            目标坐标类型：
+
+            3：火星坐标（gcj02），即高德地图、腾讯地图及MapABC等地图使用的坐标；
+            5：百度地图采用的经纬度坐标（bd09ll）；
+            6：百度地图采用的墨卡托平面坐标（bd09mc）；
+
+            None:  do not need to convert
+
         :param GPS:
+        :param targetCord: 坐标的类型，目前支持的坐标类型包括：bd09ll（百度经纬度坐标）、bd09mc（百度米制坐标）、gcj02ll（国测局经纬度坐标，仅限中国）、wgs84ll（ GPS经纬度）
         :return:  dict of x: longitude, y:latitude of bd09ll coordination
         """
-        try:
-            GPS['GPS_information']['GPSLongitude'] = \
-                (lambda x: (-1) * x if GPS['GPS_information']['GPSLongitudeRef'] == 'W' else x)(GPS['GPS_information']['GPSLongitude'])
-            GPS['GPS_information']['GPSLatitude'] = \
-                (lambda x: (-1) * x if GPS['GPS_information']['GPSLatitudeRef'] == 'S' else x)(GPS['GPS_information']['GPSLatitude'])
-            baidu_coord_conversion_api = "http://api.map.baidu.com/geoconv/v1/?ak={0}&coords={1},{2}&from=1&to=5".format(
-            ExtractInfo.secret_key, GPS['GPS_information']['GPSLongitude'], GPS['GPS_information']['GPSLatitude'])
+        coord_mapping = {'wgs84ll': 1, 'gcj02': 3, 'bd09ll': 5, 'bd09mc': 6}
+        GPS['GPS_information']['GPSLongitude'] = \
+            (lambda x: (-1) * x if GPS['GPS_information']['GPSLongitudeRef'] == 'W' else x)(GPS['GPS_information']['GPSLongitude'])
+        GPS['GPS_information']['GPSLatitude'] = \
+            (lambda x: (-1) * x if GPS['GPS_information']['GPSLatitudeRef'] == 'S' else x)(GPS['GPS_information']['GPSLatitude'])
 
-            response = requests.get(baidu_coord_conversion_api)
-            text = json.loads(response.text)
-            if text['status'] == 0:
-                return text['result'][0]['x'], text['result'][0]['y']
-            else:
+        if targetCord is None:
+            return GPS['GPS_information']['GPSLongitude'], GPS['GPS_information']['GPSLatitude']
+        else:
+            try:
+                baidu_coord_conversion_api = "http://api.map.baidu.com/geoconv/v1/?ak={0}&coords={1},{2}&from=1&to={3}".format(
+                ExtractInfo.secret_key, GPS['GPS_information']['GPSLongitude'], GPS['GPS_information']['GPSLatitude'],
+                coord_mapping[targetCord])
+
+                response = requests.get(baidu_coord_conversion_api)
+                text = json.loads(response.text)
+                if text['status'] == 0:
+                    return text['result'][0]['x'], text['result'][0]['y']
+                else:
+                    raise LookupError
+            except:
                 raise LookupError
-        except:
-            raise LookupError
 
 
     def find_address_from_bd(self, GPS):
@@ -157,40 +187,68 @@ class ExtractInfo:
             return '该照片无Exif信息'
         elif GPS['GPS_information']:
             try:
-                lng, lat = self.wgs84_2_bd09ll_conversion(GPS)
+                lng, lat = self.wgs84_cord_conversion(GPS, None)        # use wgs84 coordination
             except LookupError:
-                self.logger.error('wgs84 coordination to bd09ll coordination conversion failed')
-                lat = round(GPS['GPS_information']['GPSLatitude']+ExtractInfo.LAT_OFF_BD, 6)
-                lng = round(GPS['GPS_information']['GPSLongitude']+ExtractInfo.LONG_OFF_BD, 6)
+                self.logger.error('wgs84 coordination to other coordination conversion failed,use wgs84')
+                # lat = round(GPS['GPS_information']['GPSLatitude']+ExtractInfo.LAT_OFF_BD, 6)
+                # lng = round(GPS['GPS_information']['GPSLongitude']+ExtractInfo.LONG_OFF_BD, 6)
+                lat = round(GPS['GPS_information']['GPSLatitude'], 6)
+                lng = round(GPS['GPS_information']['GPSLongitude'], 6)
 
             try:
-                self.logger.info('True latitude,longitude are {},{},altitude={},date={}'
-                            '\nBD-offset longitude,latitude are {},{},'
+                self.logger.info('True wgs84 latitude,longitude are {},{},altitude={},date={}'
+                            '\nConverted longitude,latitude are {},{},'
                             '\nGPSProcessingMethod={},PhoneModel={}'.format(
                     GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
                     GPS['GPS_information']['GPSAltitude'],GPS['date_information'],
                     lng, lat, GPS['GPS_information']['GPSProcessingMethod'],
                     GPS['model']))
             except KeyError:
-                self.logger.info('True latitude,longitude are {},{},date={}'
-                            '\nBD-offset longitude,latitude are {},{}'
+                self.logger.info('True wgs84 latitude,longitude are {},{},date={}'
+                            '\nConverted longitude,latitude are {},{}'
                             '\nPhoneModel={}'.format(
                     GPS['GPS_information']['GPSLatitude'],GPS['GPS_information']['GPSLongitude'],
                     GPS['date_information'],
                     lng, lat,
                     GPS['model']))
-            baidu_map_api = "http://api.map.baidu.com/geocoder/v2/?ak={0}&callback=renderReverse&location={1},{2}s&output=json&pois=0".format(
-                ExtractInfo.secret_key, lat, lng)
-            response = requests.get(baidu_map_api)
-            content = response.text.replace("renderReverse&&renderReverse(", "")[:-1]
-            baidu_map_address = json.loads(content)
-            formatted_address = baidu_map_address["result"]["formatted_address"]
-            province = baidu_map_address["result"]["addressComponent"]["province"]
-            city = baidu_map_address["result"]["addressComponent"]["city"]
-            district = baidu_map_address["result"]["addressComponent"]["district"]
-            location = baidu_map_address["result"]["sematic_description"]
 
-            return formatted_address, province, city, district, location
+            try:
+                # baidu document for V3.0 , https://lbsyun.baidu.com/index.php?title=webapi/guide/webservice-geocoding-abroad
+                # use wgs84ll coordination to initiate reverse_geocoding query
+                baidu_reverse_geocoding_api = "https://api.map.baidu.com/reverse_geocoding/v3/?ak={0}&" \
+                                "coordtype=wgs84ll&location={1},{2}s&output=json&radius=500&extensions_poi=1".format(
+                                ExtractInfo.secret_key, lat, lng)
+
+                response = requests.get(baidu_reverse_geocoding_api)
+                content = response.text
+                baidu_map_address = json.loads(content)
+                if baidu_map_address['status'] == 0:
+                    formatted_address = baidu_map_address["result"]["formatted_address"]
+                    province = baidu_map_address["result"]["addressComponent"]["province"]
+                    city = baidu_map_address["result"]["addressComponent"]["city"]
+                    district = baidu_map_address["result"]["addressComponent"]["district"]
+                    location = baidu_map_address["result"]["sematic_description"]
+                else:
+                    self.logger.error(baidu_map_address['message'])
+                    return 'unAuthorization baidu Id','unknown','unknown','unknown','unknown','unknown'
+
+
+                # below is implementation of V2.0
+                # baidu_map_api = "http://api.map.baidu.com/geocoder/v2/?ak={0}&callback=renderReverse&location={1},{2}s&output=json&pois=0".format(
+                #     ExtractInfo.secret_key, lat, lng)
+                # response = requests.get(baidu_map_api)
+                # content = response.text.replace("renderReverse&&renderReverse(", "")[:-1]
+                # baidu_map_address = json.loads(content)
+                # formatted_address = baidu_map_address["result"]["formatted_address"]
+                # province = baidu_map_address["result"]["addressComponent"]["province"]
+                # city = baidu_map_address["result"]["addressComponent"]["city"]
+                # district = baidu_map_address["result"]["addressComponent"]["district"]
+                # location = baidu_map_address["result"]["sematic_description"]
+            except:
+                self.logger.error('error in connecting to baidu, please check you internet connection')
+                return 'unknown','unknown','unknown','unknown','unknown','unknown'
+            else:
+                return formatted_address, province, city, district, location
         else:   # no GPS Location information, only model or date_information
             return 'unknown','unknown','unknown','unknown','unknown','unknown'
 
