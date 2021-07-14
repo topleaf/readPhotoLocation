@@ -87,10 +87,11 @@ class ExtractInfo:
         #                logger.debug("longitude={}".format(GPS['GPSLongitude']))
                     elif re.match('GPS GPSAltitude', tag):
                         self.logger.debug('original Altitude={}'.format(value.printable))
-                        GPS['GPSAltitude'] = "{:.2f}".format(eval(value.printable))
+                        try:
+                            GPS['GPSAltitude'] = "{:.2f}".format(eval(value.printable))
+                        except ZeroDivisionError:
+                            GPS['GPSAltitude'] = 0.0
                     elif re.match('GPS GPSProcessingMethod', tag):
-                        # logger.debug(value)
-                        # nonblanklist = [x.replace(' ','') for x in str(value)[1:-1].split(',')]
                         GPS['GPSProcessingMethod'] = ''
                         for item in value.values:
                             try:
@@ -120,8 +121,8 @@ class ExtractInfo:
         """
         self.logger.debug('deg={},minute={},sec={}'.format(deg,minute,sec))
         try:
-            decimal_degree = int(deg) + eval(minute)/60 + eval(sec)/3600
-        except ValueError:
+            decimal_degree = eval(deg) + eval(minute)/60 + eval(sec)/3600
+        except (ValueError, ZeroDivisionError):
             self.logger.error("invalid GPS degree,minute or seconds,return 0.000000")
             return 0.000000
         else:

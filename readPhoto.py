@@ -285,9 +285,7 @@ class ReadPhotoGui(Tk):
 
     def __on_locate(self,count):
         url_string = self.extractInfo.BD_LOCATE_URL.format(self.latitudes[count].get(), self.longitudes[count].get(),
-                                                       "照片位置", self.file_vars[count].get().split('.')[0][-9:].replace(' ', ''))
-        # # url_string = self.extractInfo.BD_LOCATE_URL.format(self.latitudes[count].get(), self.longitudes[count].get(),
-        #                                                "照片位置", 'here')
+                                    self.file_vars[count].get().split('.')[0][-9:].replace(' ', ''),"照片位置")
         ct = Context(ReadPhotoGui.os_dependency[self.platform], self.logger)
         ct.show_on_baidu_map(url_string)
 
