@@ -119,7 +119,7 @@ class ExtractInfo:
         """
         self.logger.debug('deg={},minute={},sec={}'.format(deg,minute,sec))
         try:
-            decimal_degree = int(deg) + int(minute)/60 + eval(sec)/3600
+            decimal_degree = int(deg) + eval(minute)/60 + eval(sec)/3600
         except ValueError:
             self.logger.error("invalid GPS degree,minute or seconds,return 0.000000")
             return 0.000000
@@ -135,6 +135,10 @@ class ExtractInfo:
         :return:  dict of x: longitude, y:latitude of bd09ll coordination
         """
         try:
+            GPS['GPS_information']['GPSLongitude'] = \
+                (lambda x: (-1) * x if GPS['GPS_information']['GPSLongitudeRef'] == 'W' else x)(GPS['GPS_information']['GPSLongitude'])
+            GPS['GPS_information']['GPSLatitude'] = \
+                (lambda x: (-1) * x if GPS['GPS_information']['GPSLatitudeRef'] == 'S' else x)(GPS['GPS_information']['GPSLatitude'])
             baidu_coord_conversion_api = "http://api.map.baidu.com/geoconv/v1/?ak={0}&coords={1},{2}&from=1&to=5".format(
             ExtractInfo.secret_key, GPS['GPS_information']['GPSLongitude'], GPS['GPS_information']['GPSLatitude'])
 

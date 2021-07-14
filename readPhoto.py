@@ -145,7 +145,7 @@ class ReadPhotoGui(Tk):
         file_var.set(filename)
         self.file_vars.append(file_var)
         ttk.Label(frame_t,text='filename:').grid(row=0, column=0, padx=10, sticky=(E,W,N,S))
-        ttk.Entry(frame_t,width=80,textvariable=self.file_vars[count], state='disabled').\
+        ttk.Entry(frame_t,width=80,textvariable=self.file_vars[count], state='normal').\
             grid(row=0, column=1, columnspan=3, padx=10, sticky=(E,W,N,S))
         ttk.Button(frame_t,text='show photo',command=lambda:self.__on_show_pic(count)).\
             grid(row=0,column=4,padx=20,sticky=(E,W))
@@ -284,9 +284,11 @@ class ReadPhotoGui(Tk):
         ct.show_pic(self,  count)
 
     def __on_locate(self,count):
-        url_string = self.extractInfo.BD_LOCATE_URL.format(self.latitudes[count].get(),self.longitudes[count].get(),
-                                                       "照片位置",self.file_vars[count].get().split('.')[0][:15])
-        ct = Context(ReadPhotoGui.os_dependency[self.platform],self.logger)
+        url_string = self.extractInfo.BD_LOCATE_URL.format(self.latitudes[count].get(), self.longitudes[count].get(),
+                                                       "照片位置", self.file_vars[count].get().split('.')[0][-9:].replace(' ', ''))
+        # # url_string = self.extractInfo.BD_LOCATE_URL.format(self.latitudes[count].get(), self.longitudes[count].get(),
+        #                                                "照片位置", 'here')
+        ct = Context(ReadPhotoGui.os_dependency[self.platform], self.logger)
         ct.show_on_baidu_map(url_string)
 
 
