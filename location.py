@@ -55,11 +55,15 @@ class ExtractInfo:
         GPS = {}
         date_str = ''
         image_model = ''
+        exif_version = ''
         try:
             with open(self.pic_path+pic_name, 'rb') as f:
                 tags = exifread.process_file(f)
 
                 for tag, value in tags.items():
+                    #EXIF version
+                    if re.match('EXIF ExifVersion',tag):
+                        exif_version = str(value.printable)
                     # 纬度
                     if re.match('GPS GPSLatitudeRef', tag):
                         GPS['GPSLatitudeRef'] = str(value)
@@ -108,7 +112,7 @@ class ExtractInfo:
         except PermissionError:
             self.logger.error('one file has no permission,skip it')
             pass
-        return {'GPS_information': GPS, 'date_information': date_str, 'model': image_model}
+        return {'GPS_information': GPS, 'date_information': date_str, 'model': image_model, 'exif_version': exif_version}
 
     def __convert_coor(self, deg,minute,sec):
         """
@@ -184,8 +188,10 @@ class ExtractInfo:
 
 
     def find_address_from_bd(self, GPS):
-        if not GPS['GPS_information'] and not GPS['date_information'] and not GPS['model']:
+        if GPS['exif_version'] == '':
             return '该照片无Exif信息'
+        if not GPS['GPS_information'] and not GPS['date_information'] and not GPS['model']:
+            return '该照片无地理位置信息'
         elif GPS['GPS_information']:
             try:
                 lng, lat = self.wgs84_cord_conversion(GPS, None)        # use wgs84 coordination

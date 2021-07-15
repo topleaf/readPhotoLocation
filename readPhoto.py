@@ -108,7 +108,7 @@ class ReadPhotoGui(Tk):
 
                 result = self.extractInfo.find_address_from_bd(gps_dict)
 
-                if result == "该照片无Exif信息":
+                if result == "该照片无Exif信息" or result == '该照片无地理位置信息':
                     self.logger.info("No {}. The photo: {}  {}".format(count,pic_file_name, result))
                 else:
                     self.__fill_frame(count, pic_file_name,gps_dict,result)
@@ -302,32 +302,6 @@ class ReadPhotoGui(Tk):
             directory = filedialog.askdirectory()
         self.path.set(directory+'/')
         self.check_button['state'] = 'normal'
-        pass
-
-    def extract(self):
-
-        list1 = os.listdir(self.path.get())
-        count = 1
-        for pic_file_name in list1:
-            try:
-                self.logger.info("-"*25)
-                gps_dict = self.extractInfo.extract_image(pic_file_name)
-
-                result = self.extractInfo.find_address_from_bd(gps_dict)
-
-                if result == "该照片无GPS信息":
-                    self.logger.info("No {}. The photo: {}  {}".format(count,pic_file_name, result))
-                else:
-                    self.logger.info("No {}. The photo: {} was taken at {}".format(count,pic_file_name, result))
-                count += 1
-            except IsADirectoryError:
-                pass
-
-        self.logger.info("\n\nvisit http://api.map.baidu.com/lbsapi/getpoint/index.html , "
-                    "\npaste BD-offset longitude,latitude pair,选择 坐标反查，"
-                    "可以在地图上显示相应的地点")
-        self.logger.info("\n 或者使用 http://api.map.baidu.com/marker?location=40.047669,116.313082&title=我的位置&content=百度奎科大厦&output=html&src=webapp.baidu.openAPIdemo")
-
         pass
 
 
