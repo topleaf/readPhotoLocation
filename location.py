@@ -189,9 +189,9 @@ class ExtractInfo:
 
     def find_address_from_bd(self, GPS):
         if GPS['exif_version'] == '':
-            return '该照片无Exif信息'
+            return '无Exif信息'
         if not GPS['GPS_information'] and not GPS['date_information'] and not GPS['model']:
-            return '该照片无地理位置信息'
+            return '无地理位置信息'
         elif GPS['GPS_information']:
             try:
                 lng, lat = self.wgs84_cord_conversion(GPS, None)        # use wgs84 coordination
