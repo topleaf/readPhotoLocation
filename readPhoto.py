@@ -57,18 +57,24 @@ class ReadPhotoGui(Tk):
         self.middle_frame = ttk.Frame(self.mainframe, padding="1 1 1 1", borderwidth=3, relief=RIDGE)
         self.middle_frame.pack(fill=BOTH, expand=False, pady=5)     #fill horizontally, do NOT expand vertically
         self.show_button = ttk.Button(self.middle_frame,text='Open file', state='disabled', command=self.__on_show_pic)
-        self.show_button.grid(row=0,column=0,sticky=(E,W), padx=140,pady=10)
+        self.show_button.grid(row=0,column=1,sticky=(E,W), padx=40,pady=10)
         self.locate_button = ttk.Button(self.middle_frame,text='Locate on baidu map', state='disabled',command=self.__on_locate)
-        self.locate_button.grid(row=0, column=1,sticky=(E,W), padx=140,pady=10)
+        self.locate_button.grid(row=0, column=3, sticky=(E,W), padx=40,pady=10)
 
-        ttk.Label(self.middle_frame, text='total file number:').grid(row=1,column=0,sticky=(E,W), padx=10)
+        ttk.Label(self.middle_frame, text='file(s) analyzed:').grid(row=1,column=0,sticky=(E,W), padx=10)
         self.total_count = IntVar()
         self.total_count.set(0)
         self.total_count_entry = ttk.Entry(self.middle_frame, textvariable=self.total_count,width=20,justify='left')
         self.total_count_entry.grid(row=1, column=1,sticky=(E,W),padx=10)
 
-        self.middle_frame.columnconfigure(0, weight=1)  # set column #0 to use expanded space
-        self.middle_frame.columnconfigure(1, weight=1)  # and set column #1 to use expanded space
+        ttk.Label(self.middle_frame, text='file(s) with GPS:').grid(row=1,column=2,sticky=(E,W), padx=10)
+        self.gps_count = IntVar()
+        self.gps_count.set(0)
+        self.gps_count_entry = ttk.Entry(self.middle_frame, textvariable=self.gps_count,width=20,justify='left')
+        self.gps_count_entry.grid(row=1, column=3,sticky=(E,W),padx=10)
+
+        self.middle_frame.columnconfigure(1, weight=1)  # set column #1 to use expanded space
+        self.middle_frame.columnconfigure(3, weight=1)  # and set column #3 to use expanded space
 
         self.notebook = ttk.Notebook(self.mainframe)
         self.notebook.pack(fill=BOTH, expand=True, pady=5)
@@ -127,13 +133,14 @@ class ReadPhotoGui(Tk):
                     self.__fill_to_notebook( noGPSInfoCount,pic_file_name,gps_dict,result)
                     noGPSInfoCount += 1
                 else:
-                    self.__fill_to_notebook( count, pic_file_name,gps_dict,result,gps_info=True)
+                    self.__fill_to_notebook( count, pic_file_name, gps_dict, result, gps_info=True)
                     self.logger.info("No {}. The photo: {} was taken at {}".format(totalCount, pic_file_name, result))
                     count += 1
                 totalCount += 1
             except IsADirectoryError:
                 pass
         self.total_count.set(totalCount)
+        self.gps_count.set(count)
         # logger.info("\n\nvisit http://api.map.baidu.com/lbsapi/getpoint/index.html , "
         #             "\npaste BD-offset longitude,latitude pair,选择 坐标反查，"
         #             "可以在地图上显示相应的地点")
@@ -208,7 +215,7 @@ class ReadPhotoGui(Tk):
         #    print(k)
         tv.heading(col, command=lambda: self.__treeview_sort_column(tv, col, not reverse))#重写标题，使之成为再点倒序的标题
 
-    def __fill_to_notebook(self,local_count,pic_file_name,gps_dict,result,gps_info=False):
+    def __fill_to_notebook(self,local_count, pic_file_name, gps_dict, result, gps_info=False):
         """
 
         :param local_count:  index int within this tab(category)
@@ -220,7 +227,7 @@ class ReadPhotoGui(Tk):
         """
         decode_info = result
         if gps_info:
-            result = 'GPS定位信息'
+            result = 'GPS定位信息'  #set tab label
 
 
         tab_handle = self.frames_in_notebook.get(result)
@@ -232,7 +239,7 @@ class ReadPhotoGui(Tk):
             self.notebook.add(frame_t, text=result)
 
             # configure rows and columns expansion behaviour , how those rows and columns spread to take additional space
-            for i in range(20):
+            for i in range(30):
                 frame_t.rowconfigure(i,weight=1)
             for i in (0,):       #  columns 1# do not expand,which is y_scrollbar,only column 0# the treeview can expand
                 frame_t.columnconfigure(i, weight=1)
@@ -240,18 +247,19 @@ class ReadPhotoGui(Tk):
             # add a treeView inside this frame
             if gps_info:
                 columns = ['No','filename','model','date', 'address',
-                         'province','city','location','longitude','latitude']
+                         'province','city','location','method','altitude','longitude','latitude']
             else:
                 columns = ['No', 'filename', 'model', 'date']
             # create a treeview, only a single item can be selected at a time
             # all columns are  displayed on tree view
-            # specify the number of rows which should be visible to 25
+            # specify the number of rows which should be visible to 30
             tree = ttk.Treeview(frame_t, columns=columns, show='headings',
                                 selectmode='browse', displaycolumns=columns,
-                                height=25)
+                                height=30)
 
             self.frames_in_notebook[result]['tree_handle'] = tree
 
+            #set treeview's columns property(name,width in pixel,justify, etc)
             tree.column('#0', width=0, stretch=NO)
             tree.column('No', anchor=CENTER, width=28,stretch=NO)
             tree.column('filename', anchor=CENTER, width=280)
@@ -262,30 +270,37 @@ class ReadPhotoGui(Tk):
                 tree.column('province', anchor=CENTER, width=80)
                 tree.column('city', anchor=CENTER, width=80)
                 tree.column('location', anchor=CENTER, width=280)
+                tree.column('method', anchor=CENTER, width=100)
+                tree.column('altitude', anchor=CENTER, width=80, stretch=NO)
                 tree.column('longitude', anchor=CENTER, width=150, stretch=NO)
                 tree.column('latitude', anchor=CENTER, width=150, stretch=NO)
 
+            # set treeview's headings which are displayed as the first row
             tree.heading('#0', text='', anchor=CENTER)
             tree.heading('No', text='No.', anchor=CENTER,
                          command=lambda: self.__treeview_sort_column(tree,'No',False))
-            tree.heading('filename', text='filename', anchor=CENTER,
+            tree.heading('filename', text='File name', anchor=CENTER,
                          command=lambda: self.__treeview_sort_column(tree,'filename',False))
-            tree.heading('model', text='model',anchor=CENTER,
+            tree.heading('model', text='Model',anchor=CENTER,
                          command=lambda: self.__treeview_sort_column(tree, 'model', False))
-            tree.heading('date', text='date',anchor=CENTER,
+            tree.heading('date', text='Date',anchor=CENTER,
                          command=lambda: self.__treeview_sort_column(tree, 'date', False))
             if gps_info:
-                tree.heading('address', text='address',anchor=CENTER,
+                tree.heading('address', text='Address',anchor=CENTER,
                              command=lambda: self.__treeview_sort_column(tree, 'address', False))
-                tree.heading('province',text='province',anchor=CENTER,
+                tree.heading('province',text='Province',anchor=CENTER,
                              command=lambda: self.__treeview_sort_column(tree, 'province', False))
-                tree.heading('city', text='city',anchor=CENTER,
+                tree.heading('city', text='City',anchor=CENTER,
                              command=lambda: self.__treeview_sort_column(tree, 'city', False))
-                tree.heading('location', text='location',anchor=CENTER,
+                tree.heading('location', text='Location',anchor=CENTER,
                              command=lambda: self.__treeview_sort_column(tree, 'location', False))
-                tree.heading('longitude', text='longitude',anchor=CENTER,
+                tree.heading('method', text='GPS method',anchor=CENTER,
+                             command=lambda: self.__treeview_sort_column(tree, 'method', False))
+                tree.heading('altitude', text='Altitude',anchor=CENTER,
+                             command=lambda: self.__treeview_sort_column(tree, 'altitude', False))
+                tree.heading('longitude', text='Longitude',anchor=CENTER,
                              command=lambda: self.__treeview_sort_column(tree, 'longitude', False))
-                tree.heading('latitude', text='latitude',anchor=CENTER,
+                tree.heading('latitude', text='Latitude',anchor=CENTER,
                              command=lambda: self.__treeview_sort_column(tree, 'latitude', False))
 
             tree.bind('<<TreeviewSelect>>', self.__item_selected)  # mouse left click to select 
@@ -304,23 +319,22 @@ class ReadPhotoGui(Tk):
             tree.configure(xscroll=x_scrollbar.set)
             x_scrollbar.grid(row=1, column=0, sticky='ew')
 
-
-        if gps_info:
-            try:
+        try:
+            if gps_info:
                 self.frames_in_notebook[result]['tree_handle'].insert('', END,
                     text='',values=(local_count,pic_file_name,gps_dict['model'],
                                     gps_dict['date_information'],decode_info[0],decode_info[1],
-                                    decode_info[2],decode_info[4],gps_dict['GPS_information']['GPSLongitude'],
+                                    decode_info[2],decode_info[4],
+                                    gps_dict['GPS_information']['GPSProcessingMethod'],
+                                    gps_dict['GPS_information']['GPSAltitude'],
+                                    gps_dict['GPS_information']['GPSLongitude'],
                                     gps_dict['GPS_information']['GPSLatitude']),open=False)
-            except KeyError:
-                self.logger.error('missing keys in file with gps info :to be fixed')
-        else:
-            try:
+            else:
                 self.frames_in_notebook[result]['tree_handle'].insert('', END,
                     text='',values=(local_count, pic_file_name, gps_dict['model'],
                                     gps_dict['date_information']),open=False)
-            except KeyError:
-                self.logger.error('missing keys without gps info: to be fixed')
+        except KeyError as e:
+            self.logger.error('missing key is :{}'.format(e))
         self.frames_in_notebook[result]['tree_handle'].grid(row=0, column=0, sticky='nsew')
 
 
@@ -488,6 +502,7 @@ class ReadPhotoGui(Tk):
 
     def __on_locate(self):
         try:
+            # get  latitude & longitude, which are the last 2 items in selected_record tuple
             url_string = self.extractInfo.BD_LOCATE_URL.format(self.selected_record[-1], self.selected_record[-2],
                                             self.selected_record[1].split('.')[0][-9:].replace(' ', ''),"照片位置")
         except (TypeError, IndexError):

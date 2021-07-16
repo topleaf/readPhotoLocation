@@ -202,6 +202,10 @@ class ExtractInfo:
                 lat = round(GPS['GPS_information']['GPSLatitude'], 6)
                 lng = round(GPS['GPS_information']['GPSLongitude'], 6)
 
+            if GPS['GPS_information'].get('GPSAltitude') is None:
+                GPS['GPS_information']['GPSAltitude'] = 'unset'
+            if GPS['GPS_information'].get('GPSProcessingMethod') is None:
+                GPS['GPS_information']['GPSProcessingMethod'] = 'unset'
             try:
                 self.logger.info('True wgs84 latitude,longitude are {},{},altitude={},date={}'
                             '\nConverted longitude,latitude are {},{},'
@@ -237,7 +241,7 @@ class ExtractInfo:
                     location = baidu_map_address["result"]["sematic_description"]
                 else:
                     self.logger.error(baidu_map_address['message'])
-                    return 'unAuthorization baidu Id','unknown','unknown','unknown','unknown','unknown'
+                    return 'unAuthorization baidu Id','unknown','unknown','unknown','unknown'
 
 
                 # below is implementation of V2.0
@@ -253,11 +257,11 @@ class ExtractInfo:
                 # location = baidu_map_address["result"]["sematic_description"]
             except:
                 self.logger.error('error in connecting to baidu, please check you internet connection')
-                return 'unknown','unknown','unknown','unknown','unknown','unknown'
+                return 'unknown','unknown','unknown','unknown','unknown'
             else:
                 return formatted_address, province, city, district, location
         else:   # no GPS Location information, only model or date_information
-            return 'unknown','unknown','unknown','unknown','unknown','unknown'
+            return 'unknown','unknown','unknown','unknown','unknown'
 
 
 
