@@ -29,9 +29,9 @@ class ReadPhotoGui(Tk):
         self.resizable(True, True)
         self.geometry(str(ReadPhotoGui.WIDTH)+'x'+str(ReadPhotoGui.HEIGHT))
 
-        ttk.Style().configure("TFrame", foreground='green', background='lightgrey')
+        frame_style = ttk.Style().configure("TFrame", background='lightgrey')
         self.mainframe = ttk.Frame(self, padding="1 1 1 1",
-                                   relief=RAISED,
+                                   relief=RAISED, style=frame_style,
                                    height=ReadPhotoGui.HEIGHT, width=ReadPhotoGui.WIDTH)
         # mainframe.grid_propagate(1)
         self.mainframe.pack(fill=BOTH, expand=True)
@@ -53,53 +53,47 @@ class ReadPhotoGui(Tk):
         self.check_button = ttk.Button(self.top_frame, text='check', command=self.on_check,state='disabled')
         self.check_button.grid(row=0, column=3, sticky=(E,W),padx=20)
 
-        self.notebook = ttk.Notebook(self.mainframe)
-        self.notebook.pack(fill=BOTH,expand=True,pady=5)
-        self.frames_in_notebook = {}  # a dict to store 3 tabs'name and their handles
+        # create a middle_frame to hold 2 buttons and a few labels
+        self.middle_frame = ttk.Frame(self.mainframe, padding="1 1 1 1", borderwidth=3, relief=RIDGE)
+        self.middle_frame.pack(fill=BOTH, expand=False, pady=5)     #fill horizontally, do NOT expand vertically
+        self.show_button = ttk.Button(self.middle_frame,text='show photo', state='disabled', command=self.__on_show_pic)
+        self.show_button.grid(row=0,column=0,sticky=(E,W), padx=140,pady=10)
+        self.locate_button = ttk.Button(self.middle_frame,text='locate on baidu map', state='disabled',command=self.__on_locate)
+        self.locate_button.grid(row=0, column=1,sticky=(E,W), padx=140,pady=10)
 
-        self.bottom_frame = ttk.Frame(self.mainframe, padding="1 1 1 1", borderwidth=3, relief=RIDGE)
-        self.bottom_frame.pack(fill=BOTH, expand=False)     #fill horizontally, do NOT expand vertically
-        self.show_button = ttk.Button(self.bottom_frame,text='show photo', state='disabled', command=self.__on_show_pic)
-        self.show_button.grid(row=0,column=0,sticky=(E,W), padx=140)
-        self.locate_button = ttk.Button(self.bottom_frame,text='locate on baidu map', state='disabled',command=self.__on_locate)
-        self.locate_button.grid(row=0, column=1,sticky=(E,W), padx=140)
-        self.bottom_frame.columnconfigure(0, weight=1)  # set column #0 to use expanded space
-        self.bottom_frame.columnconfigure(1, weight=1)  # and set column #1 to use expanded space
+        ttk.Label(self.middle_frame, text='total file number:').grid(row=1,column=0,sticky=(E,W), padx=10)
+        self.total_count = IntVar()
+        self.total_count.set(0)
+        self.total_count_entry = ttk.Entry(self.middle_frame, textvariable=self.total_count,width=20,justify='left')
+        self.total_count_entry.grid(row=1, column=1,sticky=(E,W),padx=10)
+
+        self.middle_frame.columnconfigure(0, weight=1)  # set column #0 to use expanded space
+        self.middle_frame.columnconfigure(1, weight=1)  # and set column #1 to use expanded space
+
+        self.notebook = ttk.Notebook(self.mainframe)
+        self.notebook.pack(fill=BOTH, expand=True, pady=5)
+        # whenever the selected tab changes, it generates following virtual event, and get handled by my routine
+        self.notebook.bind("<<NotebookTabChanged>>", self.__notebook_tab_changed)
+
+        self.frames_in_notebook = {}  # a dict to store  tabs'name and their handles
+        #  eg. frames_in_notebook['GPS定位信息']['tab_handle']
+        # eg.  frames_in_notebook['GPS定位信息']['tree_handle']
 
         self.selected_record = []
-        self.file_vars = []
-        self.longitudes =[]
-        self.latitudes = []
-        self.altitudes = []
-        self.formatted_addrs = []
-        self.provinces = []
-        self.cities = []
-        self.districts = []
-        self.locations = []
-        self.dates = []
-        self.models = []
-        self.processings = []
 
 
 
     def __clear_notebook(self):
         for tab_name in self.frames_in_notebook:
+            # delete all children of this treeview
+            children = self.frames_in_notebook[tab_name]['tree_handle'].get_children()
+            for item in children:
+                self.frames_in_notebook[tab_name]['tree_handle'].delete(item)
+
+            # delete this tab in the notebook
             self.notebook.forget(self.frames_in_notebook[tab_name]['tab_handle'])
+
         self.frames_in_notebook.clear()
-        self.file_vars.clear()
-        self.longitudes.clear()
-        self.latitudes.clear()
-        self.altitudes.clear()
-        self.formatted_addrs.clear()
-        self.provinces.clear()
-        self.cities.clear()
-        self.districts.clear()
-        self.locations.clear()
-        self.dates.clear()
-        self.models.clear()
-        self.processings.clear()
-
-
 
 
     def on_check(self):
@@ -112,6 +106,9 @@ class ReadPhotoGui(Tk):
         totalCount = 0
         noExifCount = 0
         noGPSInfoCount = 0
+
+
+
         for pic_file_name in list1:
             try:
                 self.logger.info("-"*25)
@@ -136,10 +133,32 @@ class ReadPhotoGui(Tk):
                 totalCount += 1
             except IsADirectoryError:
                 pass
+        self.total_count.set(totalCount)
+        # logger.info("\n\nvisit http://api.map.baidu.com/lbsapi/getpoint/index.html , "
+        #             "\npaste BD-offset longitude,latitude pair,选择 坐标反查，"
+        #             "可以在地图上显示相应的地点")
 
-        logger.info("\n\nvisit http://api.map.baidu.com/lbsapi/getpoint/index.html , "
-                    "\npaste BD-offset longitude,latitude pair,选择 坐标反查，"
-                    "可以在地图上显示相应的地点")
+
+    # bind the notebook tab changed event
+    def __notebook_tab_changed(self, event):
+        """
+        whenever user change to a different tab,
+        clear all previous selected items in all notebook tabs, to avoid misunderstanding
+        disable 2 buttons(show_button,locate_button)
+        :param event:
+        :return:
+        """
+        tab_label = self.notebook.tab(self.notebook.select(), 'text')
+        self.selected_record = None
+        for tab_key in self.frames_in_notebook:
+            if tab_key == tab_label:
+                continue
+            else:
+                tree = self.frames_in_notebook[tab_key]['tree_handle']
+                tree.selection_remove(tree.selection()) # unselect previous selection
+
+        self.locate_button.configure(state='disabled')
+        self.show_button.configure(state='disabled')
 
 
 
@@ -161,6 +180,20 @@ class ReadPhotoGui(Tk):
             # msgbox.showinfo(title='Information',
             #          message=','.join(self.selected_record[1:]))
 
+
+    def  __treeview_sort_column(self, tv, col, reverse): #Treeview、列名、排列方式
+        # ————————————————
+        # 版权声明：本文为CSDN博主「超自然祈祷」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+        # 原文链接：https://blog.csdn.net/sinat_27382047/article/details/80161637
+        l = [(tv.set(k, col), k) for k in tv.get_children('')]
+        print(tv.get_children(''))
+        l.sort(reverse=reverse)     #排序方式
+        # rearrange items in sorted positions
+        for index, (val, k) in enumerate(l):        #根据排序后索引移动
+            tv.move(k, '', index)
+            print(k)
+        tv.heading(col, command=lambda: self.__treeview_sort_column(tv, col, not reverse))#重写标题，使之成为再点倒序的标题
+
     def __fill_to_notebook(self,local_count,pic_file_name,gps_dict,result,gps_info=False):
         """
 
@@ -177,18 +210,20 @@ class ReadPhotoGui(Tk):
 
 
         tab_handle = self.frames_in_notebook.get(result)
-        if tab_handle is None: # this category does not exist
+        if tab_handle is None:
+            # this category does not exist, then create a tab using result as the dictionary's key
+            # store its tab_handle and tree_handle into a dict, so handles can be retrieved to operate tab and tree.
             frame_t = ttk.Frame(self.notebook)
-            self.frames_in_notebook[result]=dict(tab_handle=frame_t, tree_handle=None)
+            self.frames_in_notebook[result] = dict(tab_handle=frame_t, tree_handle=None)
             self.notebook.add(frame_t, text=result)
 
             # configure rows and columns expansion behaviour , how those rows and columns spread to take additional space
             for i in range(20):
                 frame_t.rowconfigure(i,weight=1)
-            for i in (1,3):       # label columns 0#,2#, 4# do not expand
-                frame_t.columnconfigure(i,weight=1)
+            for i in (0,):       #  columns 1# do not expand,which is y_scrollbar,only column 0# the treeview can expand
+                frame_t.columnconfigure(i, weight=1)
 
-            # add a treeView inside this tab
+            # add a treeView inside this frame
             if gps_info:
                 columns = ['No','filename','model','date', 'address',
                          'province','city','location','longitude','latitude']
@@ -196,14 +231,15 @@ class ReadPhotoGui(Tk):
                 columns = ['No', 'filename', 'model', 'date']
             # create a treeview, only a single item can be selected at a time
             # all columns are  displayed on tree view
-            # specify the number of rows which should be visible to 20
+            # specify the number of rows which should be visible to 25
             tree = ttk.Treeview(frame_t, columns=columns, show='headings',
                                 selectmode='browse', displaycolumns=columns,
-                                height=20)
+                                height=25)
+
             self.frames_in_notebook[result]['tree_handle'] = tree
 
             tree.column('#0', width=0, stretch=NO)
-            tree.column('No', anchor=CENTER, width=28)
+            tree.column('No', anchor=CENTER, width=28,stretch=NO)
             tree.column('filename', anchor=CENTER, width=280)
             tree.column('model', anchor=CENTER, width=180)
             tree.column('date', anchor=CENTER, width=150)
@@ -212,21 +248,31 @@ class ReadPhotoGui(Tk):
                 tree.column('province', anchor=CENTER, width=80)
                 tree.column('city', anchor=CENTER, width=80)
                 tree.column('location', anchor=CENTER, width=280)
-                tree.column('longitude', anchor=CENTER, width=150)
-                tree.column('latitude', anchor=CENTER, width=150)
+                tree.column('longitude', anchor=CENTER, width=150, stretch=NO)
+                tree.column('latitude', anchor=CENTER, width=150, stretch=NO)
 
             tree.heading('#0', text='', anchor=CENTER)
-            tree.heading('No', text='No.', anchor=CENTER)
-            tree.heading('filename', text='filename', anchor=CENTER)
-            tree.heading('model', text='model',anchor=CENTER)
-            tree.heading('date', text='date',anchor=CENTER)
+            tree.heading('No', text='No.', anchor=CENTER,
+                         command=lambda: self.__treeview_sort_column(tree,'No',False))
+            tree.heading('filename', text='filename', anchor=CENTER,
+                         command=lambda: self.__treeview_sort_column(tree,'filename',False))
+            tree.heading('model', text='model',anchor=CENTER,
+                         command=lambda: self.__treeview_sort_column(tree, 'model', False))
+            tree.heading('date', text='date',anchor=CENTER,
+                         command=lambda: self.__treeview_sort_column(tree, 'date', False))
             if gps_info:
-                tree.heading('address', text='address',anchor=CENTER)
-                tree.heading('province',text='province',anchor=CENTER)
-                tree.heading('city', text='city',anchor=CENTER)
-                tree.heading('location', text='location',anchor=CENTER)
-                tree.heading('longitude', text='longitude',anchor=CENTER)
-                tree.heading('latitude', text='latitude',anchor=CENTER)
+                tree.heading('address', text='address',anchor=CENTER,
+                             command=lambda: self.__treeview_sort_column(tree, 'address', False))
+                tree.heading('province',text='province',anchor=CENTER,
+                             command=lambda: self.__treeview_sort_column(tree, 'province', False))
+                tree.heading('city', text='city',anchor=CENTER,
+                             command=lambda: self.__treeview_sort_column(tree, 'city', False))
+                tree.heading('location', text='location',anchor=CENTER,
+                             command=lambda: self.__treeview_sort_column(tree, 'location', False))
+                tree.heading('longitude', text='longitude',anchor=CENTER,
+                             command=lambda: self.__treeview_sort_column(tree, 'longitude', False))
+                tree.heading('latitude', text='latitude',anchor=CENTER,
+                             command=lambda: self.__treeview_sort_column(tree, 'latitude', False))
 
             tree.bind('<<TreeviewSelect>>', self.__item_selected)
             
@@ -425,8 +471,11 @@ class ReadPhotoGui(Tk):
         ct.show_pic(self)
 
     def __on_locate(self):
-        url_string = self.extractInfo.BD_LOCATE_URL.format(self.selected_record[-1], self.selected_record[-2],
+        try:
+            url_string = self.extractInfo.BD_LOCATE_URL.format(self.selected_record[-1], self.selected_record[-2],
                                             self.selected_record[1].split('.')[0][-9:].replace(' ', ''),"照片位置")
+        except (TypeError, IndexError):
+            msgbox.showinfo('Information', 'Please select one file to locate it on map')
         ct = Context(ReadPhotoGui.os_dependency[self.platform], self.logger)
         ct.show_on_baidu_map(url_string)
 
