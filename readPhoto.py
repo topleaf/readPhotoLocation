@@ -42,23 +42,23 @@ class ReadPhotoGui(Tk):
 
         ttk.Label(self.top_frame, text='Path:').grid(row=0,column=0,sticky=(E,W), padx=10)
         self.path = StringVar()
-        self.path.set('please choose folder where photos locate')
+        self.path.set('please select folder where photos locate')
         self.path_entry = ttk.Entry(self.top_frame, textvariable=self.path, width=80, justify='left')
         self.path_entry.grid(row=0, column=1, sticky=(E, W), padx=10)
         self.top_frame.columnconfigure(1, weight=1)  # set column #1 to use expanded space
 
-        self.choose_button = ttk.Button(self.top_frame,text='choose folder',command=self.on_choose)
+        self.choose_button = ttk.Button(self.top_frame,text='Select folder',command=self.on_choose)
         self.choose_button.grid(row=0, column=2, sticky=(E, W),padx=20)
 
-        self.check_button = ttk.Button(self.top_frame, text='check', command=self.on_check,state='disabled')
+        self.check_button = ttk.Button(self.top_frame, text='Analyze', command=self.on_check,state='disabled')
         self.check_button.grid(row=0, column=3, sticky=(E,W),padx=20)
 
         # create a middle_frame to hold 2 buttons and a few labels
         self.middle_frame = ttk.Frame(self.mainframe, padding="1 1 1 1", borderwidth=3, relief=RIDGE)
         self.middle_frame.pack(fill=BOTH, expand=False, pady=5)     #fill horizontally, do NOT expand vertically
-        self.show_button = ttk.Button(self.middle_frame,text='show photo', state='disabled', command=self.__on_show_pic)
+        self.show_button = ttk.Button(self.middle_frame,text='Open file', state='disabled', command=self.__on_show_pic)
         self.show_button.grid(row=0,column=0,sticky=(E,W), padx=140,pady=10)
-        self.locate_button = ttk.Button(self.middle_frame,text='locate on baidu map', state='disabled',command=self.__on_locate)
+        self.locate_button = ttk.Button(self.middle_frame,text='Locate on baidu map', state='disabled',command=self.__on_locate)
         self.locate_button.grid(row=0, column=1,sticky=(E,W), padx=140,pady=10)
 
         ttk.Label(self.middle_frame, text='total file number:').grid(row=1,column=0,sticky=(E,W), padx=10)
@@ -180,18 +180,32 @@ class ReadPhotoGui(Tk):
             # msgbox.showinfo(title='Information',
             #          message=','.join(self.selected_record[1:]))
 
-
+    #bind mouse left key double click with a treeview
+    def __double_clicked_treeview(self,event):
+        self.__item_selected(event)
+        self.__on_show_pic()
+        
+    #bind mouse right key click with a treeview
+    def __right_clicked_treeview(self,event):
+        self.__item_selected(event)
+        tab_label = self.notebook.tab(self.notebook.select(),'text')
+        if tab_label == 'GPS定位信息':
+            self.__on_locate()
+        else:
+            msgbox.showinfo("Alert",'you can only locate a photo with GPS information on map')
+            
+        
     def  __treeview_sort_column(self, tv, col, reverse): #Treeview、列名、排列方式
         # ————————————————
         # 版权声明：本文为CSDN博主「超自然祈祷」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
         # 原文链接：https://blog.csdn.net/sinat_27382047/article/details/80161637
         l = [(tv.set(k, col), k) for k in tv.get_children('')]
-        print(tv.get_children(''))
+        #print(tv.get_children(''))
         l.sort(reverse=reverse)     #排序方式
         # rearrange items in sorted positions
         for index, (val, k) in enumerate(l):        #根据排序后索引移动
             tv.move(k, '', index)
-            print(k)
+        #    print(k)
         tv.heading(col, command=lambda: self.__treeview_sort_column(tv, col, not reverse))#重写标题，使之成为再点倒序的标题
 
     def __fill_to_notebook(self,local_count,pic_file_name,gps_dict,result,gps_info=False):
@@ -274,7 +288,9 @@ class ReadPhotoGui(Tk):
                 tree.heading('latitude', text='latitude',anchor=CENTER,
                              command=lambda: self.__treeview_sort_column(tree, 'latitude', False))
 
-            tree.bind('<<TreeviewSelect>>', self.__item_selected)
+            tree.bind('<<TreeviewSelect>>', self.__item_selected)  # mouse left click to select 
+            tree.bind('<Double-Button-1>',self.__double_clicked_treeview)  # mouse left double-click 
+            tree.bind('<Button-3>',self.__right_clicked_treeview)   # mouse right click 
             
             # add a vertical scrollbar to the right of treeview
             y_scrollbar = ttk.Scrollbar(frame_t, orient=VERTICAL, command=tree.yview)
@@ -285,7 +301,7 @@ class ReadPhotoGui(Tk):
             # add a horizontal scrollbar to the bottom of treeview
             x_scrollbar = ttk.Scrollbar(frame_t, orient=HORIZONTAL, command=tree.xview)
             self.frames_in_notebook[result]['xscroll_handle'] = x_scrollbar
-            tree.configure(yscroll=x_scrollbar.set)
+            tree.configure(xscroll=x_scrollbar.set)
             x_scrollbar.grid(row=1, column=0, sticky='ew')
 
 
@@ -476,6 +492,8 @@ class ReadPhotoGui(Tk):
                                             self.selected_record[1].split('.')[0][-9:].replace(' ', ''),"照片位置")
         except (TypeError, IndexError):
             msgbox.showinfo('Information', 'Please select one file to locate it on map')
+            return
+        
         ct = Context(ReadPhotoGui.os_dependency[self.platform], self.logger)
         ct.show_on_baidu_map(url_string)
 
