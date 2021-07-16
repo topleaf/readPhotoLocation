@@ -7,9 +7,9 @@ class Context:
         self.osHandler = osHandler
         self.logger = logger
 
-    def show_pic(self, photoGui, count):
+    def show_pic(self, photoGui):
         self.logger.debug('Context.show_pic called')
-        self.osHandler.show_pic(self, photoGui, count)
+        self.osHandler.show_pic(self, photoGui)
 
     def show_on_baidu_map(self,  url):
         self.logger.debug('Context.show_on_baidu_map called')
@@ -35,15 +35,15 @@ class WindowsOS(AbstractOSHandler):
     def __init__(self):
         super().__init__()
 
-    def show_pic(self, photoGui, count):
+    def show_pic(self, photoGui):
         try:
-            ret_v = os.system('"' + photoGui.path.get() + photoGui.file_vars[count].get() + '"')
+            ret_v = os.system('"' + photoGui.path.get() + photoGui.selected_record[1] + '"')
             # in Windows OS, open a file whose name contains space, just ignore start and use double quotes
         except:
             self.logger.error('Windows system show_pic failure')
         else:
             if ret_v == 0:
-                self.logger.info('Windows file opened: ' + photoGui.path.get() + photoGui.file_vars[count].get())
+                self.logger.info('Windows file opened: ' + photoGui.path.get() + photoGui.selected_record[1])
             else:
                 self.logger.error('return value = {}'.format(ret_v))
 
@@ -64,14 +64,14 @@ class LinuxOS(AbstractOSHandler):
     def __init__(self):
         pass
 
-    def show_pic(self, photoGui, count):
+    def show_pic(self, photoGui):
         try:
-            ret_v = os.system('xdg-open ' + '"' + photoGui.path.get() + photoGui.file_vars[count].get() + '"')
+            ret_v = os.system('xdg-open ' + '"' + photoGui.path.get() + photoGui.selected_record[1] + '"')
         except:
             self.logger.error('linux system show_pic failure')
         else:
             if ret_v == 0:
-                self.logger.info(' file opened: ' + photoGui.path.get() + photoGui.file_vars[count].get())
+                self.logger.info(' file opened: ' + photoGui.path.get() + photoGui.selected_record[1])
             else:
                 self.logger.error('return value = {}'.format(ret_v))
 
@@ -92,14 +92,14 @@ class MacOS(AbstractOSHandler):
     def __init__(self):
         pass
 
-    def show_pic(self, photoGui, count):
+    def show_pic(self, photoGui):
         try:
-            ret_v = os.system('open ' + '"' + photoGui.path.get() + photoGui.file_vars[count].get() + '"')
+            ret_v = os.system('open ' + '"' + photoGui.path.get() + photoGui.selected_record[1] + '"')
         except:
             self.logger.error('MacOS system show_pic failure')
         else:
             if ret_v == 0:
-                self.logger.info(' file opened: ' + photoGui.path.get() + photoGui.file_vars[count].get())
+                self.logger.info(' file opened: ' + photoGui.path.get() + photoGui.selected_record[1])
             else:
                 self.logger.error('return value = {}'.format(ret_v))
 

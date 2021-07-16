@@ -190,7 +190,7 @@ class ExtractInfo:
     def find_address_from_bd(self, GPS):
         if GPS['exif_version'] == '':
             return '无Exif信息'
-        if not GPS['GPS_information'] and not GPS['date_information'] and not GPS['model']:
+        if len(GPS['GPS_information']) == 0:
             return '无地理位置信息'
         elif GPS['GPS_information']:
             try:
