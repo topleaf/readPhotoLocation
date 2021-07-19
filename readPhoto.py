@@ -15,7 +15,7 @@ from context import Context, WindowsOS, LinuxOS, MacOS
 from urllib.parse import urlencode
 
 class ReadPhotoGui(Tk):
-    HEIGHT = 600
+    HEIGHT = 800
     WIDTH = 1200
     os_dependency = {'Windows': WindowsOS, 'Linux': LinuxOS, 'Darwin': MacOS}
 
@@ -59,7 +59,7 @@ class ReadPhotoGui(Tk):
         self.middle_frame.pack(fill=BOTH, expand=False, pady=5)     #fill horizontally, do NOT expand vertically
         self.show_button = ttk.Button(self.middle_frame,text='Open file', state='disabled', command=self.__on_show_pic)
         self.show_button.grid(row=0,column=1,sticky=(E,W), padx=40,pady=10)
-        self.locate_button = ttk.Button(self.middle_frame,text='Locate on baidu map', state='disabled',command=self.__on_locate)
+        self.locate_button = ttk.Button(self.middle_frame,text='Locate on map', state='disabled',command=self.__on_locate)
         self.locate_button.grid(row=0, column=3, sticky=(E,W), padx=40,pady=10)
 
         ttk.Label(self.middle_frame, text='file(s) analyzed:').grid(row=1,column=0,sticky=(E,W), padx=10)
@@ -253,10 +253,10 @@ class ReadPhotoGui(Tk):
                 columns = ['No', 'filename', 'model', 'date']
             # create a treeview, only a single item can be selected at a time
             # all columns are  displayed on tree view
-            # specify the number of rows which should be visible to 30
+            # specify the number of rows which are visible to 29
             tree = ttk.Treeview(frame_t, columns=columns, show='headings',
                                 selectmode='browse', displaycolumns=columns,
-                                height=30)
+                                height=29)
 
             self.frames_in_notebook[result]['tree_handle'] = tree
 
@@ -325,7 +325,7 @@ class ReadPhotoGui(Tk):
 
         try:
             if gps_info:
-                self.frames_in_notebook[result]['tree_handle'].insert('', END,
+                item_id = self.frames_in_notebook[result]['tree_handle'].insert('', END,
                     text='',values=(local_count,pic_file_name,gps_dict['model'],
                                     gps_dict['date_information'],decode_info[0],decode_info[1],
                                     decode_info[2],decode_info[3], decode_info[5],
@@ -333,12 +333,15 @@ class ReadPhotoGui(Tk):
                                     gps_dict['GPS_information']['GPSAltitude'],
                                     gps_dict['GPS_information']['GPSLongitude'],
                                     gps_dict['GPS_information']['GPSLatitude']),open=False)
+                # change gps treeview's maximum height to 29 to make horizontal scrollbar visible
+                self.frames_in_notebook[result]['tree_handle'].configure(height=min(29, int(item_id.lstrip('I'),16)))
             else:
                 self.frames_in_notebook[result]['tree_handle'].insert('', END,
                     text='',values=(local_count, pic_file_name, gps_dict['model'],
                                     gps_dict['date_information']),open=False)
         except KeyError as e:
             self.logger.error('missing key is :{}'.format(e))
+
         self.frames_in_notebook[result]['tree_handle'].grid(row=0, column=0, sticky='nsew')
 
 
