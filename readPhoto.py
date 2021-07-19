@@ -12,6 +12,7 @@ import os,platform
 from tkinter import filedialog
 import tkinter.messagebox as msgbox
 from context import Context, WindowsOS, LinuxOS, MacOS
+from urllib.parse import urlencode
 
 class ReadPhotoGui(Tk):
     HEIGHT = 600
@@ -246,7 +247,7 @@ class ReadPhotoGui(Tk):
 
             # add a treeView inside this frame
             if gps_info:
-                columns = ['No','filename','model','date', 'address',
+                columns = ['No','filename','model','date', 'address','country',
                          'province','city','location','method','altitude','longitude','latitude']
             else:
                 columns = ['No', 'filename', 'model', 'date']
@@ -267,6 +268,7 @@ class ReadPhotoGui(Tk):
             tree.column('date', anchor=CENTER, width=150)
             if gps_info: # add more columns
                 tree.column('address', anchor=CENTER, width=180)
+                tree.column('country', anchor=CENTER, width=80)
                 tree.column('province', anchor=CENTER, width=80)
                 tree.column('city', anchor=CENTER, width=80)
                 tree.column('location', anchor=CENTER, width=280)
@@ -288,6 +290,8 @@ class ReadPhotoGui(Tk):
             if gps_info:
                 tree.heading('address', text='Address',anchor=CENTER,
                              command=lambda: self.__treeview_sort_column(tree, 'address', False))
+                tree.heading('country',text='Country',anchor=CENTER,
+                             command=lambda: self.__treeview_sort_column(tree, 'country', False))
                 tree.heading('province',text='Province',anchor=CENTER,
                              command=lambda: self.__treeview_sort_column(tree, 'province', False))
                 tree.heading('city', text='City',anchor=CENTER,
@@ -324,7 +328,7 @@ class ReadPhotoGui(Tk):
                 self.frames_in_notebook[result]['tree_handle'].insert('', END,
                     text='',values=(local_count,pic_file_name,gps_dict['model'],
                                     gps_dict['date_information'],decode_info[0],decode_info[1],
-                                    decode_info[2],decode_info[4],
+                                    decode_info[2],decode_info[3], decode_info[5],
                                     gps_dict['GPS_information']['GPSProcessingMethod'],
                                     gps_dict['GPS_information']['GPSAltitude'],
                                     gps_dict['GPS_information']['GPSLongitude'],
@@ -503,8 +507,34 @@ class ReadPhotoGui(Tk):
     def __on_locate(self):
         try:
             # get  latitude & longitude, which are the last 2 items in selected_record tuple
-            url_string = self.extractInfo.BD_LOCATE_URL.format(self.selected_record[-1], self.selected_record[-2],
-                                            self.selected_record[1].split('.')[0][-9:].replace(' ', ''),"照片位置")
+            # url_string = self.extractInfo.BD_LOCATE_URL.format(self.selected_record[-1], self.selected_record[-2],
+            #                                 self.selected_record[1].split('.')[0][-9:].replace(' ', ''),"照片位置")
+            country = self.selected_record[5]
+            if country == 'CHN':
+                bd_params = {
+                    'location': str(self.selected_record[-1]) + ',' + str(self.selected_record[-2]),
+                    # 'title': self.selected_record[1].split('.')[0][-9:].replace(' ', ''),
+                    # 'content': '照片位置',
+                    'output': 'html',
+                    'src': 'webapp.baidu.openAPIDemo',
+                    'coord_type': 'wgs84'
+                }
+                url_params = urlencode(bd_params, safe=',')
+                # url_string = f"{self.extractInfo.BD_MARKER_ENDPOINT}?{url_params}"
+                url_string = f"{self.extractInfo.BD_GEOCODER_ENDPOINT}?{url_params}"
+            else:
+                # https://developers.arcgis.com/rest/geocode/api-reference/geocode-coverage.htm#GUID-D61FB53E-32DF-4E0E-A1CC-473BA38A23C0
+                arcgis_params = {
+                    'location': str(self.selected_record[-2]) + ',' + str(self.selected_record[-1]),
+                    'f': 'pjson',
+                    'langCode': 'EN',  #'ZH'
+                    # 'sourceCountry':'CHN',
+                    'forStorage':'false',
+                    'featureTypes':'' #'StreetInt'  # or ''
+                }
+                url_params = urlencode(arcgis_params)
+                url_string = f"{self.extractInfo.ARCGIS_GEOCODER_ENDPOINT}?{url_params}"
+
         except (TypeError, IndexError):
             msgbox.showinfo('Information', 'Please select one file to locate it on map')
             return

@@ -34,8 +34,13 @@ class ExtractInfo:
     LONG_OFF_BD = 0.011262
     LAT_OFF_BD = 0.004035   #0.003386
     secret_key = 'QTzFTf0kvm8YuFYFCnNK3Xa5uQtgzbFM'   # baidu map ak  #'wLyevcXk5QY36hTKmvV5350F'
-    BD_LOCATE_URL = 'http://api.map.baidu.com/marker?location={0},{1}' \
-                    '&title={2}&content={3}&output=html&src=webapp.baidu.openAPIdemo&coord_type=wgs84'
+    # google_api_key = 'AIzaSyCWgcmv8G7ST9anKHGeN_xl6fNJmcLqTM4'
+    # BD_LOCATE_URL = 'http://api.map.baidu.com/marker?location={0},{1}' \
+    #                 '&title={2}&content={3}&output=html&src=webapp.baidu.openAPIdemo&coord_type=wgs84'
+    BD_MARKER_ENDPOINT = f"https://api.map.baidu.com/marker"
+    BD_GEOCODER_ENDPOINT = f"https://api.map.baidu.com/geocoder"
+    ARCGIS_GEOCODER_ENDPOINT = f"https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode"
+
     #坐标类型，可选参数。
         # 示例：
         # coord_type= bd09ll
@@ -235,13 +240,14 @@ class ExtractInfo:
                 baidu_map_address = json.loads(content)
                 if baidu_map_address['status'] == 0:
                     formatted_address = baidu_map_address["result"]["formatted_address"]
+                    country = baidu_map_address['result']['addressComponent']['country_code_iso']
                     province = baidu_map_address["result"]["addressComponent"]["province"]
                     city = baidu_map_address["result"]["addressComponent"]["city"]
                     district = baidu_map_address["result"]["addressComponent"]["district"]
                     location = baidu_map_address["result"]["sematic_description"]
                 else:
                     self.logger.error(baidu_map_address['message'])
-                    return 'unAuthorization baidu Id','unknown','unknown','unknown','unknown'
+                    return 'unAuthorization baidu Id','unknown','unknown','unknown','unknown','unknown'
 
 
                 # below is implementation of V2.0
@@ -257,11 +263,11 @@ class ExtractInfo:
                 # location = baidu_map_address["result"]["sematic_description"]
             except:
                 self.logger.error('error in connecting to baidu, please check you internet connection')
-                return 'unknown','unknown','unknown','unknown','unknown'
+                return 'unknown','unknown','unknown','unknown','unknown','unknown'
             else:
-                return formatted_address, province, city, district, location
+                return formatted_address, country, province, city, district, location
         else:   # no GPS Location information, only model or date_information
-            return 'unknown','unknown','unknown','unknown','unknown'
+            return 'unknown','unknown','unknown','unknown','unknown','unknown'
 
 
 
