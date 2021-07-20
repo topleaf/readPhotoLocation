@@ -14,7 +14,7 @@ import tkinter.messagebox as msgbox
 from context import Context, WindowsOS, LinuxOS, MacOS
 from urllib.parse import urlencode
 import queue
-from threading import Thread, currentThread,Lock
+from threading import Thread, currentThread
 
 class ReadPhotoGui(Tk):
     HEIGHT = 800
@@ -118,6 +118,10 @@ class ReadPhotoGui(Tk):
         while self.q.qsize():
             try:
                 item_from_queue = self.q.get()
+                self.logger.debug('get one item {} from queue'.format(item_from_queue['filename']))
+                self.q.task_done()
+                # self.q.join()
+
                 if item_from_queue['result'] == "无Exif信息":
                     self.__fill_to_notebook(item_from_queue['noExifCount'],
                                              item_from_queue['filename'],
@@ -616,7 +620,11 @@ def analysis_work(extractInfoInstance,progress_queue,logger):
             item_in_queue['count'] = count
             item_in_queue['noExifCount'] = noExifCount
             item_in_queue['noGPSInfoCount'] = noGPSInfoCount
+            logger.debug('put one item {} into queue'.format(list1[i]))
             progress_queue.put(item_in_queue)
+            # https://www.cnblogs.com/dbf-/p/11118628.html
+            # block current thread until all queue items have been get by consumer thread
+            progress_queue.join()
         except IsADirectoryError:
             pass
 
