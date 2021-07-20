@@ -56,6 +56,9 @@ class ExtractInfo:
         self.pic_path = pic_path
         self.logger = logger
 
+    def get_path(self):
+        return self.pic_path
+
     def extract_image(self, pic_name):
         GPS = {}
         date_str = ''

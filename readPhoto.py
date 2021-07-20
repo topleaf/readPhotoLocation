@@ -13,6 +13,8 @@ from tkinter import filedialog
 import tkinter.messagebox as msgbox
 from context import Context, WindowsOS, LinuxOS, MacOS
 from urllib.parse import urlencode
+import queue
+from threading import Thread, currentThread,Lock
 
 class ReadPhotoGui(Tk):
     HEIGHT = 800
@@ -23,6 +25,8 @@ class ReadPhotoGui(Tk):
         super().__init__()
         self.logger = logger
         self.platform = platform.system()
+        self.work_thread = None
+        self.q = queue.Queue()
         self.buildInitialGui()
 
     def buildInitialGui(self):
@@ -68,11 +72,17 @@ class ReadPhotoGui(Tk):
         self.total_count_entry = ttk.Entry(self.middle_frame, textvariable=self.total_count,width=20,justify='left')
         self.total_count_entry.grid(row=1, column=1,sticky=(E,W),padx=10)
 
-        ttk.Label(self.middle_frame, text='file(s) with GPS:').grid(row=1,column=2,sticky=(E,W), padx=10)
+        ttk.Label(self.middle_frame, text='file(s) with GPS:').grid(row=1,column=2,sticky=(E,W), padx=10,pady=10)
         self.gps_count = IntVar()
         self.gps_count.set(0)
         self.gps_count_entry = ttk.Entry(self.middle_frame, textvariable=self.gps_count,width=20,justify='left')
         self.gps_count_entry.grid(row=1, column=3,sticky=(E,W),padx=10)
+
+        # place a progressbar
+        ttk.Label(self.middle_frame, text='Analysis Progress:').grid(row=2,column=0,sticky=(E,W), padx=10,pady=10)
+        self.progressbar = ttk.Progressbar(self.middle_frame, orient='horizontal',mode='determinate',value=0, maximum=100)
+        self.progressbar.grid(row=2, column=1,columnspan=3, sticky=W+E, pady=10)
+
 
         self.middle_frame.columnconfigure(1, weight=1)  # set column #1 to use expanded space
         self.middle_frame.columnconfigure(3, weight=1)  # and set column #3 to use expanded space
@@ -103,48 +113,58 @@ class ReadPhotoGui(Tk):
         self.frames_in_notebook.clear()
 
 
+
+    def __periodic_check(self):
+        while self.q.qsize():
+            try:
+                item_from_queue = self.q.get()
+                if item_from_queue['result'] == "无Exif信息":
+                    self.__fill_to_notebook(item_from_queue['noExifCount'],
+                                             item_from_queue['filename'],
+                                             item_from_queue['gps_dict'],
+                                             item_from_queue['result'])
+                elif item_from_queue['result'] == '无地理位置信息':
+                    self.__fill_to_notebook(item_from_queue['noGPSInfoCount'],
+                                             item_from_queue['filename'],
+                                             item_from_queue['gps_dict'],
+                                             item_from_queue['result'])
+                else:
+                    self.__fill_to_notebook(item_from_queue['count'],
+                                             item_from_queue['filename'],
+                                             item_from_queue['gps_dict'],
+                                             item_from_queue['result'],
+                                             gps_info=True)
+
+                self.progressbar.configure(value=item_from_queue['current_percent'])
+                self.total_count.set(item_from_queue['total_count'])
+                self.gps_count.set(item_from_queue['count'])
+            except queue.Empty:
+                pass
+        if self.work_thread is not None:
+            if self.work_thread.is_alive():
+                # self.logger.info('{} is alive'.format(self.work_thread.getName()))
+                self.after(100, func=self.__periodic_check)
+            else:
+                self.logger.info('work thread {} completes'.format(self.work_thread.getName()))
+                self.work_thread.join()
+                self.work_thread = None
+                # self.progressbar.stop()
+
+
+
     def on_check(self):
         self.check_button['state'] = 'disabled'
+        self.progressbar.configure(value=0)
         self.logger.info("\nChecking all files under path:{}".format(self.path.get()))
+
         self.extractInfo = ExtractInfo(self.path.get(), self.logger)
-        list1 = os.listdir(self.path.get())
         self.__clear_notebook()
-        count = 0
-        totalCount = 0
-        noExifCount = 0
-        noGPSInfoCount = 0
 
+        self.work_thread = Thread(target=analysis_work, name='analysis thread', daemon=True,
+                                  args=(self.extractInfo, self.q, self.logger))
+        self.work_thread.start()
+        self.__periodic_check()
 
-
-        for pic_file_name in list1:
-            try:
-                self.logger.info("-"*25)
-                gps_dict = self.extractInfo.extract_image(pic_file_name)
-
-
-                result = self.extractInfo.find_address_from_bd(gps_dict)
-
-                if result == "无Exif信息":
-                    self.logger.info("No {}. The photo: {}  {}".format(totalCount,pic_file_name, result))
-
-                    self.__fill_to_notebook( noExifCount,pic_file_name,gps_dict,result)
-                    noExifCount += 1
-                elif result == '无地理位置信息':
-                    self.logger.info("No {}. The photo: {}  {}".format(totalCount,pic_file_name, result))
-                    self.__fill_to_notebook( noGPSInfoCount,pic_file_name,gps_dict,result)
-                    noGPSInfoCount += 1
-                else:
-                    self.__fill_to_notebook( count, pic_file_name, gps_dict, result, gps_info=True)
-                    self.logger.info("No {}. The photo: {} was taken at {}".format(totalCount, pic_file_name, result))
-                    count += 1
-                totalCount += 1
-            except IsADirectoryError:
-                pass
-        self.total_count.set(totalCount)
-        self.gps_count.set(count)
-        # logger.info("\n\nvisit http://api.map.baidu.com/lbsapi/getpoint/index.html , "
-        #             "\npaste BD-offset longitude,latitude pair,选择 坐标反查，"
-        #             "可以在地图上显示相应的地点")
 
 
     # bind the notebook tab changed event
@@ -559,6 +579,51 @@ class ReadPhotoGui(Tk):
         self.path.set(directory+'/')
         self.check_button['state'] = 'normal'
         pass
+
+
+def analysis_work(extractInfoInstance,progress_queue,logger):
+    logger.info('thread {} starts:'.format(currentThread().getName()))
+    list1 = os.listdir(extractInfoInstance.get_path())
+    list1.sort()
+    list_len = len(list1)
+    item_in_queue = {}
+
+    noExifCount=0
+    noGPSInfoCount=0
+    count = 0
+    totalCount = 0
+    for i in range(list_len):
+        try:
+            logger.info("-"*25)
+            gps_dict = extractInfoInstance.extract_image(list1[i])
+            result = extractInfoInstance.find_address_from_bd(gps_dict)
+
+            if result == "无Exif信息":
+                logger.info("No {}. The photo: {}  {}".format(totalCount, list1[i], result))
+                noExifCount += 1
+            elif result == '无地理位置信息':
+                logger.info("No {}. The photo: {}  {}".format(totalCount, list1[i], result))
+                noGPSInfoCount += 1
+            else:
+                logger.info("No {}. The photo: {} was taken at {}".format(totalCount, list1[i], result))
+                count += 1
+            totalCount += 1
+            item_in_queue['filename'] = list1[i]
+            item_in_queue['result'] = result
+            item_in_queue['gps_dict'] = gps_dict
+            item_in_queue['current_percent'] = "{:.1f}".format((i+1)/list_len*100)
+            item_in_queue['total_count'] = totalCount
+            item_in_queue['count'] = count
+            item_in_queue['noExifCount'] = noExifCount
+            item_in_queue['noGPSInfoCount'] = noGPSInfoCount
+            progress_queue.put(item_in_queue)
+        except IsADirectoryError:
+            pass
+
+    # logger.info("\n\nvisit http://api.map.baidu.com/lbsapi/getpoint/index.html , "
+    #             "\npaste BD-offset longitude,latitude pair,选择 坐标反查，"
+    #             "可以在地图上显示相应的地点")
+    logger.info('thread {} ends:'.format(currentThread().getName()))
 
 
 if __name__ == '__main__':
