@@ -55,33 +55,43 @@ class ReadPhotoGui(Tk):
         self.choose_button = ttk.Button(self.top_frame,text='Select folder',command=self.on_choose)
         self.choose_button.grid(row=0, column=2, sticky=(E, W),padx=20)
 
-        self.check_button = ttk.Button(self.top_frame, text='Analyze', command=self.on_check,state='disabled')
-        self.check_button.grid(row=0, column=3, sticky=(E,W),padx=20)
+        self.about_button = ttk.Button(self.top_frame,text='About', state='normal',command=self.__on_about)
+        self.about_button.grid(row=0, column=3, sticky=(E,W), padx=20, pady=10)
+
+        # self.check_button = ttk.Button(self.top_frame, text='Analyze', command=self.on_check,state='disabled')
+        # self.check_button.grid(row=0, column=3, sticky=(E,W),padx=20)
 
         # create a middle_frame to hold 2 buttons and a few labels
         self.middle_frame = ttk.Frame(self.mainframe, padding="1 1 1 1", borderwidth=3, relief=RIDGE)
         self.middle_frame.pack(fill=BOTH, expand=False, pady=5)     #fill horizontally, do NOT expand vertically
         self.show_button = ttk.Button(self.middle_frame,text='Open file', state='disabled', command=self.__on_show_pic)
-        self.show_button.grid(row=0,column=1,sticky=(E,W), padx=40,pady=10)
+        self.show_button.grid(row=0,column=4,sticky=(E,W), padx=40,pady=5)
         self.locate_button = ttk.Button(self.middle_frame,text='Locate on map', state='disabled',command=self.__on_locate)
-        self.locate_button.grid(row=0, column=3, sticky=(E,W), padx=40,pady=10)
+        self.locate_button.grid(row=1, column=4, sticky=(E,W), padx=40,pady=5)
 
-        ttk.Label(self.middle_frame, text='file(s) analyzed:').grid(row=1,column=0,sticky=(E,W), padx=10)
+
+
+        ttk.Label(self.middle_frame, text='file(s) analyzed:').\
+            grid(row=0,column=0,sticky=(E,W), padx=10, pady=10)
         self.total_count = IntVar()
         self.total_count.set(0)
-        self.total_count_entry = ttk.Entry(self.middle_frame, textvariable=self.total_count,width=20,justify='left')
-        self.total_count_entry.grid(row=1, column=1,sticky=(E,W),padx=10)
+        self.total_count_entry = ttk.Entry(self.middle_frame,
+                textvariable=self.total_count,width=20,justify='left', state='disabled')
+        self.total_count_entry.grid(row=0, column=1,sticky=(E,W),padx=10)
 
-        ttk.Label(self.middle_frame, text='file(s) with GPS:').grid(row=1,column=2,sticky=(E,W), padx=10,pady=10)
+        ttk.Label(self.middle_frame, text='file(s) with GPS:').\
+            grid(row=0,column=2,sticky=(E,W), padx=10, pady=10)
         self.gps_count = IntVar()
         self.gps_count.set(0)
-        self.gps_count_entry = ttk.Entry(self.middle_frame, textvariable=self.gps_count,width=20,justify='left')
-        self.gps_count_entry.grid(row=1, column=3,sticky=(E,W),padx=10)
+        self.gps_count_entry = ttk.Entry(self.middle_frame,
+                textvariable=self.gps_count,width=20,justify='left',state='disabled')
+        self.gps_count_entry.grid(row=0, column=3,sticky=(E,W),padx=10)
 
         # place a progressbar
-        ttk.Label(self.middle_frame, text='Analysis Progress:').grid(row=2,column=0,sticky=(E,W), padx=10,pady=10)
+        ttk.Label(self.middle_frame, text='Analysis Progress:')\
+            .grid(row=1,column=0,sticky=(E,W), padx=10)
         self.progressbar = ttk.Progressbar(self.middle_frame, orient='horizontal',mode='determinate',value=0, maximum=100)
-        self.progressbar.grid(row=2, column=1,columnspan=3, sticky=W+E, pady=10)
+        self.progressbar.grid(row=1, column=1,columnspan=3, sticky=W+E)
 
 
         self.middle_frame.columnconfigure(1, weight=1)  # set column #1 to use expanded space
@@ -118,7 +128,9 @@ class ReadPhotoGui(Tk):
         while self.q.qsize():
             try:
                 item_from_queue = self.q.get()
-                self.logger.debug('get one item {} from queue'.format(item_from_queue['filename']))
+                self.logger.debug('{} get one item {} from queue'.format(
+                    currentThread().getName(),
+                    item_from_queue['filename']))
                 self.q.task_done()
                 # self.q.join()
 
@@ -149,7 +161,7 @@ class ReadPhotoGui(Tk):
                 # self.logger.info('{} is alive'.format(self.work_thread.getName()))
                 self.after(100, func=self.__periodic_check)
             else:
-                self.logger.info('work thread {} completes'.format(self.work_thread.getName()))
+                self.logger.debug('work thread {} completes'.format(self.work_thread.getName()))
                 self.work_thread.join()
                 self.work_thread = None
                 # self.progressbar.stop()
@@ -157,14 +169,14 @@ class ReadPhotoGui(Tk):
 
 
     def on_check(self):
-        self.check_button['state'] = 'disabled'
+        # self.check_button['state'] = 'disabled'
         self.progressbar.configure(value=0)
         self.logger.info("\nChecking all files under path:{}".format(self.path.get()))
 
         self.extractInfo = ExtractInfo(self.path.get(), self.logger)
         self.__clear_notebook()
 
-        self.work_thread = Thread(target=analysis_work, name='analysis thread', daemon=True,
+        self.work_thread = Thread(target=analysis_work, name='AnalysisThread', daemon=True,
                                   args=(self.extractInfo, self.q, self.logger))
         self.work_thread.start()
         self.__periodic_check()
@@ -180,17 +192,21 @@ class ReadPhotoGui(Tk):
         :param event:
         :return:
         """
-        tab_label = self.notebook.tab(self.notebook.select(), 'text')
-        self.selected_record = None
-        for tab_key in self.frames_in_notebook:
-            if tab_key == tab_label:
-                continue
-            else:
-                tree = self.frames_in_notebook[tab_key]['tree_handle']
-                tree.selection_remove(tree.selection()) # unselect previous selection
+        try:
+            tab_label = self.notebook.tab(self.notebook.select(), 'text')
+        except TclError as e:
+            logger.info('ignore TclError:{}'.format(e))
+        else:
+            self.selected_record = None
+            for tab_key in self.frames_in_notebook:
+                if tab_key == tab_label:
+                    continue
+                else:
+                    tree = self.frames_in_notebook[tab_key]['tree_handle']
+                    tree.selection_remove(tree.selection()) # unselect previous selection
 
-        self.locate_button.configure(state='disabled')
-        self.show_button.configure(state='disabled')
+            self.locate_button.configure(state='disabled')
+            self.show_button.configure(state='disabled')
 
 
 
@@ -526,7 +542,10 @@ class ReadPhotoGui(Tk):
     #     self.locations.append(location_var)
     #     ttk.Entry(frame_t,width=20,textvariable=self.locations[count]).grid(row=6,column=1,padx=10,sticky=(E,W))
 
-
+    def __on_about(self):
+        msgbox.showinfo("About","Version: 1.0\n"
+                                "Release Date: July 20,2021\n"
+                                "Author:topleaf_2000@hotmail.com\n")
     def __on_show_pic(self):
         ct = Context(ReadPhotoGui.os_dependency[self.platform],self.logger)
         ct.show_pic(self)
@@ -581,12 +600,13 @@ class ReadPhotoGui(Tk):
             msgbox.showerror("Specify a folder",'you must specify a folder where photos exist')
             directory = filedialog.askdirectory()
         self.path.set(directory+'/')
-        self.check_button['state'] = 'normal'
+        # self.check_button['state'] = 'normal'
+        self.on_check()
         pass
 
 
 def analysis_work(extractInfoInstance,progress_queue,logger):
-    logger.info('thread {} starts:'.format(currentThread().getName()))
+    logger.debug('thread {} starts:'.format(currentThread().getName()))
     list1 = os.listdir(extractInfoInstance.get_path())
     list1.sort()
     list_len = len(list1)
@@ -620,7 +640,8 @@ def analysis_work(extractInfoInstance,progress_queue,logger):
             item_in_queue['count'] = count
             item_in_queue['noExifCount'] = noExifCount
             item_in_queue['noGPSInfoCount'] = noGPSInfoCount
-            logger.debug('put one item {} into queue'.format(list1[i]))
+            logger.debug('{} put one item {} into queue'.format(currentThread().getName(),
+                                                                list1[i]))
             progress_queue.put(item_in_queue)
             # https://www.cnblogs.com/dbf-/p/11118628.html
             # block current thread until all queue items have been get by consumer thread
@@ -631,12 +652,12 @@ def analysis_work(extractInfoInstance,progress_queue,logger):
     # logger.info("\n\nvisit http://api.map.baidu.com/lbsapi/getpoint/index.html , "
     #             "\npaste BD-offset longitude,latitude pair,选择 坐标反查，"
     #             "可以在地图上显示相应的地点")
-    logger.info('thread {} ends:'.format(currentThread().getName()))
+    logger.debug('thread {} ends:'.format(currentThread().getName()))
 
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.ERROR)
     logHandler = logging.StreamHandler()
     logger.addHandler(logHandler)
     readPhoto = ReadPhotoGui(logger)
