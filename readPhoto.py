@@ -93,6 +93,8 @@ class ReadPhotoGui(Tk):
         self.gps_count_entry.grid(row=0, column=3,sticky=(E,W),padx=10)
 
         # place a progressbar
+        style = ttk.Style()
+        style.configure('Horizontal.TProgressbar', background='#5eba21')
         ttk.Label(self.middle_frame, text='Analysis Progress:')\
             .grid(row=1,column=0,sticky=(E,W), padx=10)
         self.progressbar = ttk.Progressbar(self.middle_frame, orient='horizontal',mode='determinate',value=0, maximum=100)
@@ -242,10 +244,15 @@ class ReadPhotoGui(Tk):
     def __right_clicked_treeview(self,event):
         self.__item_selected(event)
         tab_label = self.notebook.tab(self.notebook.select(),'text')
+        # copy to system clipboard
+        self.clipboard_clear()
+        self.clipboard_append(str(self.selected_record))
+
         if tab_label == 'GPS定位信息':
             self.__on_locate()
         else:
-            msgbox.showinfo("Alert",'you can only locate a photo with GPS information on map')
+            msgbox.showwarning("Alert", 'This record has been copied to system clipboard.\n\n'
+                                     'You can only show photo location on map for a photo with GPS info')
             
         
     def  __treeview_sort_column(self, tv, col, reverse): #Treeview、列名、排列方式
@@ -548,10 +555,11 @@ class ReadPhotoGui(Tk):
     #     ttk.Entry(frame_t,width=20,textvariable=self.locations[count]).grid(row=6,column=1,padx=10,sticky=(E,W))
 
     def __on_about(self):
-        msgbox.showinfo("About","Preview Release Ver: 1.1\n\n"
+        msgbox.showinfo("About","Preview Release (for friendly users ONLY) Ver: 1.2\n\n"
+                                "Both feature requests and Bug reports are welcome\n\n\n"
                                 "Date: July 21,2021\n\n"
-                                "Author:topleaf_2000@hotmail.com\n\n"
-                                "Both feature requests and Bug reports are welcome"
+                                "Author:topleaf_2000@hotmail.com"
+
                         )
     def __on_show_pic(self):
         ct = Context(ReadPhotoGui.os_dependency[self.platform],self.logger)
