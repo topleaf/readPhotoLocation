@@ -196,7 +196,7 @@ class ExtractInfo:
 
 
     def find_address_from_bd(self, GPS):
-        if GPS['exif_version'] == '':
+        if GPS['exif_version'] == '' and len(GPS['GPS_information']) == 0:
             return '无Exif信息'
         if len(GPS['GPS_information']) == 0:
             return '无地理位置信息'

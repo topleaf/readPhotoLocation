@@ -15,11 +15,14 @@ from context import Context, WindowsOS, LinuxOS, MacOS
 from urllib.parse import urlencode
 import queue
 from threading import Thread, currentThread
+from PIL import ImageTk
+import zlib, base64
 
 class ReadPhotoGui(Tk):
     HEIGHT = 800
     WIDTH = 1200
     os_dependency = {'Windows': WindowsOS, 'Linux': LinuxOS, 'Darwin': MacOS}
+    icon = zlib.decompress(base64.b64decode(b'eJzt2U1u2zAQBWC6WnhpdNMtt132Bi56MetOvYCOoiNoqYUg1rF+Sc68x5rJbhgEQfIBDyDzEtMa5y7PD+e+vb7++u3cj+d3P5+f649Xl9efv99fX8Ox5keAi/l0r3SPfaz1G/aB+RV7z7yp8475pc5bV+fOPb7SZ+fule6RT9xhQcZ6hwUauMOCMO+f/zBqvOMOC8S8dbggJX4H7up8/nBf6aAgU4mDgjAfSxwUaChxUBDmffpy9cnevfzxtrcOF6TMveruU1wt0FzmakGmMlcLwnwsc7VAzIf1XvSu96s/vsi71e+V7hVvC10riPskVwo0l7pSEObT5kpBmI+lrhSI+bD7o9LvoveV3u3uK10uSFvsckGYu2IXCzSXu1gQ5tPhYkFqfTy5Jy4d0HByaQNnlxoUufAb7s8unHDkwp9A7PkOu8jzHcaeH2Ebe7bDxLMdJp4doUtWusPU0x2mnhzhnLpjHu9wyvxK/EI83uGY+414Qzza4SC4J37eYS/4hfj5CEU/7bCTvCF+OkLZjx22ol+JH0co87FDxW/EtyPM67euB3FPfD1CoX7rYr7sUKrXsq7EL8SXHUr1W9eNeEPcqfUr80av12t54qCee7xWvy0eOKzv/vsn8bqX1evtegZcv4a4J7799Sn1a4hv8Vq9AvaG+B6v1C9gb4gf8XL9Avbzy0uL40UP2KNXLxIvecAexQv188Sj+LxeDXFPPOK8fg1xTzzmrH7p9TL1JD6rV8Ce3V4TT+Pp3TP2/HIcexaf1C/j2IW7N4mPPedA4mcSP5P4GcdH9RPi/+etk/jWb8TxZ5f4VD/50cWA408u8lE/5clIj+OPesm8u/bkrsPxe/0U3lx9MNji+EDiA4mfSfxM4mccv9ZPjV9d5cXBY/kRxy+u86teaKw04PiXA/6oH5taofgPR/ysH56qdjieD03J0LbF8YHEBxIfSPx52fyfuM3/4bL5v83/sdv8n7jN/9XVk4tOrS/30Mfbvtwz75XuVSf3TJv/O1ggm//jgrSFbvN/cdn8f1u+0m3+Lyyb/5+Wzf9t/m/zf5v/2/zf5v/EYX1t/h9Q/Wz+D9zm//uy+T+Mt/k/jrf5P4y3+T+Ot/k/jLf5v83/4foHNP70SA=='))
 
     def __init__(self, logger):
         super().__init__()
@@ -30,6 +33,8 @@ class ReadPhotoGui(Tk):
         self.buildInitialGui()
 
     def buildInitialGui(self):
+        image = ImageTk.PhotoImage(data=ReadPhotoGui.icon)
+        self.iconphoto(False, image)
         self.title("图片地理位置定位")
         self.resizable(True, True)
         self.geometry(str(ReadPhotoGui.WIDTH)+'x'+str(ReadPhotoGui.HEIGHT))
@@ -47,12 +52,12 @@ class ReadPhotoGui(Tk):
 
         ttk.Label(self.top_frame, text='Path:').grid(row=0,column=0,sticky=(E,W), padx=10)
         self.path = StringVar()
-        self.path.set('please select folder where photos locate')
-        self.path_entry = ttk.Entry(self.top_frame, textvariable=self.path, width=80, justify='left')
+        self.path.set('please select a folder where photos are placed')
+        self.path_entry = ttk.Entry(self.top_frame, textvariable=self.path, width=80, state='disabled',justify='left')
         self.path_entry.grid(row=0, column=1, sticky=(E, W), padx=10)
         self.top_frame.columnconfigure(1, weight=1)  # set column #1 to use expanded space
 
-        self.choose_button = ttk.Button(self.top_frame,text='Select folder',command=self.on_choose)
+        self.choose_button = ttk.Button(self.top_frame,text='Choose Directory',command=self.on_choose)
         self.choose_button.grid(row=0, column=2, sticky=(E, W),padx=20)
 
         self.about_button = ttk.Button(self.top_frame,text='About', state='normal',command=self.__on_about)
@@ -543,9 +548,11 @@ class ReadPhotoGui(Tk):
     #     ttk.Entry(frame_t,width=20,textvariable=self.locations[count]).grid(row=6,column=1,padx=10,sticky=(E,W))
 
     def __on_about(self):
-        msgbox.showinfo("About","Version: 1.0\n"
-                                "Release Date: July 20,2021\n"
-                                "Author:topleaf_2000@hotmail.com\n")
+        msgbox.showinfo("About","Preview Release Ver: 1.1\n\n"
+                                "Date: July 21,2021\n\n"
+                                "Author:topleaf_2000@hotmail.com\n\n"
+                                "Both feature requests and Bug reports are welcome"
+                        )
     def __on_show_pic(self):
         ct = Context(ReadPhotoGui.os_dependency[self.platform],self.logger)
         ct.show_pic(self)
@@ -597,7 +604,7 @@ class ReadPhotoGui(Tk):
         """
         directory = filedialog.askdirectory(initialdir='/home/lijin/Pictures/locations/')
         while directory == '':
-            msgbox.showerror("Specify a folder",'you must specify a folder where photos exist')
+            msgbox.showerror("Choose Directory", 'you must specify a directory where photos exist')
             directory = filedialog.askdirectory()
         self.path.set(directory+'/')
         # self.check_button['state'] = 'normal'
