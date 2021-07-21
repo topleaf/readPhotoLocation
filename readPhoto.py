@@ -134,11 +134,17 @@ class ReadPhotoGui(Tk):
     def __periodic_check(self):
         while self.q.qsize():
             try:
-                item_from_queue = self.q.get()
-                self.logger.debug('{} get one item {} from queue'.format(
-                    currentThread().getName(),
-                    item_from_queue['filename']))
-                self.q.task_done()
+                item_from_queue = self.q.get(block=True)
+                self.logger.debug('{} get  item_from_queue is {}'.format(
+                    currentThread().getName(), item_from_queue))
+
+                # Do NOT call task_done too early here, otherwise, producer
+                # thread will resume and generate more data into the queue,
+                # MUST move it to the end of this consumer thread
+                # self.q.task_done()
+
+                # Do NOT add q.join() here!! otherwise, it will block this consumer thread
+                # hence no q.task_done will be called, dead lock happens
                 # self.q.join()
 
                 if item_from_queue['result'] == "无Exif信息":
@@ -158,11 +164,23 @@ class ReadPhotoGui(Tk):
                                              item_from_queue['result'],
                                              gps_info=True)
 
+            except queue.Empty:
+                self.logger.debug('empty queue')
+            except KeyError as e:
+                # this is to handle case : incoming filename is a directory,
+                # so no result is returned, only need to update GUI for current_percent
+                self.logger.debug('unknown key:{}'.format(e))
+            else:
+                pass
+            finally:
+                # self.logger.debug('item_from_queue is {}'.format(item_from_queue))
                 self.progressbar.configure(value=item_from_queue['current_percent'])
                 self.total_count.set(item_from_queue['total_count'])
                 self.gps_count.set(item_from_queue['count'])
-            except queue.Empty:
-                pass
+                self.q.task_done()      # remember to call task_done() afterwards, it will resume producer thread
+                self.q.join()       # whether or not call this to block myself, doesn't matter
+
+
         if self.work_thread is not None:
             if self.work_thread.is_alive():
                 # self.logger.info('{} is alive'.format(self.work_thread.getName()))
@@ -634,6 +652,7 @@ def analysis_work(extractInfoInstance,progress_queue,logger):
     for i in range(list_len):
         try:
             logger.info("-"*25)
+            item_in_queue.clear()
             gps_dict = extractInfoInstance.extract_image(list1[i])
             result = extractInfoInstance.find_address_from_bd(gps_dict)
 
@@ -647,22 +666,29 @@ def analysis_work(extractInfoInstance,progress_queue,logger):
                 logger.info("No {}. The photo: {} was taken at {}".format(totalCount, list1[i], result))
                 count += 1
             totalCount += 1
+
             item_in_queue['filename'] = list1[i]
             item_in_queue['result'] = result
             item_in_queue['gps_dict'] = gps_dict
+        except IsADirectoryError:
+            logger.debug('one directory file ignored')
+        else:
+            pass
+        finally:
             item_in_queue['current_percent'] = "{:.1f}".format((i+1)/list_len*100)
             item_in_queue['total_count'] = totalCount
             item_in_queue['count'] = count
             item_in_queue['noExifCount'] = noExifCount
             item_in_queue['noGPSInfoCount'] = noGPSInfoCount
-            logger.debug('{} put one item {} into queue'.format(currentThread().getName(),
-                                                                list1[i]))
+
             progress_queue.put(item_in_queue)
+            logger.debug('{} put one item (for filename) {} {} into queue'.format(currentThread().getName(),
+                                                                   list1[i],
+                                                                   item_in_queue['current_percent']))
             # https://www.cnblogs.com/dbf-/p/11118628.html
             # block current thread until all queue items have been get by consumer thread
             progress_queue.join()
-        except IsADirectoryError:
-            pass
+
 
     # logger.info("\n\nvisit http://api.map.baidu.com/lbsapi/getpoint/index.html , "
     #             "\npaste BD-offset longitude,latitude pair,选择 坐标反查，"

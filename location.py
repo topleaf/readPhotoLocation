@@ -135,7 +135,7 @@ class ExtractInfo:
         try:
             decimal_degree = eval(deg) + eval(minute)/60 + eval(sec)/3600
         except (ValueError, ZeroDivisionError):
-            self.logger.error("invalid GPS degree,minute or seconds,return 0.000000")
+            self.logger.warn("invalid GPS degree,minute or seconds,return 0.000000")
             return 0.000000
         else:
             return round(decimal_degree, 6)
